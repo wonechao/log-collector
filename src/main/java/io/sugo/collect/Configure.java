@@ -14,6 +14,9 @@ public class Configure {
   private static final String KAFKA_PROPERTIES = "kafka.properties";
   private static final String COLLECT_PROPERTIES = "collect.properties";
   public static final String WRITER_CLASS = "writer.class";
+  public static final String READER_CLASS = "reader.class";
+
+
   private String collectorConf;
   private String kafkaConf;
   private Properties properties = new Properties();

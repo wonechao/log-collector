@@ -15,5 +15,5 @@ public abstract class AbstractWriter {
     this.conf = conf;
   }
 
-  public abstract void write(String message);
+  public abstract boolean write(String message);
 }
