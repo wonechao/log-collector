@@ -4,6 +4,7 @@ import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.SuffixFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ public class DefaultFileReader extends AbstractReader {
   private final Logger logger = LoggerFactory.getLogger(DefaultFileReader.class);
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
   public static final String COLLECT_OFFSET = ".collect_offset";
-  public static final String FILE_READER_LOG_SUFFIX = "file.reader.log.suffix";
+  public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
 
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
@@ -48,26 +49,22 @@ public class DefaultFileReader extends AbstractReader {
         try {
           long lastFileOffset = 0;
           String lastFileName = null;
+          String offsetStr = null;
           if (offsetFile.exists()) {
-            String offsetStr = FileUtils.readFileToString(offsetFile);
+            offsetStr = FileUtils.readFileToString(offsetFile);
             String[] fields = StringUtils.split(offsetStr.trim(), ':');
             lastFileName = fields[0];
             lastFileOffset = Long.parseLong(fields[1]);
           }
 
           long currentOffset = lastFileOffset;
-          Collection<File> files = FileUtils.listFiles(directory, new String[]{conf.getProperty(FILE_READER_LOG_SUFFIX)}, false);
+          Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName, lastFileOffset), null);
           for (File file : files) {
             String fileName = file.getName();
-            if (lastFileName != null) {
-              if (lastFileName.compareTo(fileName) > 0) {
-                continue;
-              }
-            }
 
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
             //如果offset为文件尾部，直接读下一个文件
-            if(randomAccessFile.length() == lastFileOffset){
+            if (randomAccessFile.length() == lastFileOffset) {
               currentOffset = 0;
               continue;
             }
