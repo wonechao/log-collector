@@ -37,10 +37,14 @@ public class DefaultFileReader extends AbstractReader {
 
     @Override
     public void run() {
+      String userDir = System.getProperty("user.dir");
+      logger.info("user.dir:" + userDir);
       while (true) {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
-        File offsetFile = new File(directory, COLLECT_OFFSET);
+        File offsetFile = new File(userDir + "/" + COLLECT_OFFSET);
+
+
         try {
           long lastFileOffset = 0;
           String lastFileName = null;
