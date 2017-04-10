@@ -1,6 +1,8 @@
 package io.sugo.collect;
 
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -10,21 +12,18 @@ import java.util.Properties;
  * Created by fengxj on 3/29/17.
  */
 public class Configure {
+  private final Logger logger = LoggerFactory.getLogger(Configure.class);
   private static final String CLASSPATH_URL_PREFIX = "classpath:";
-  private static final String KAFKA_PROPERTIES = "kafka.properties";
   private static final String COLLECT_PROPERTIES = "collect.properties";
   public static final String WRITER_CLASS = "writer.class";
   public static final String READER_CLASS = "reader.class";
-
+  public static final String FILE_READER_BATCH_SIZE = "file.reader.batch.size";
 
   private String collectorConf;
-  private String kafkaConf;
   private Properties properties = new Properties();
-  private Properties kafkaProperties = new Properties();
 
   public Configure() {
     collectorConf = System.getProperty(COLLECT_PROPERTIES, CLASSPATH_URL_PREFIX + COLLECT_PROPERTIES);
-    kafkaConf = System.getProperty(KAFKA_PROPERTIES, CLASSPATH_URL_PREFIX + KAFKA_PROPERTIES);
     loadConf();
   }
 
@@ -38,21 +37,12 @@ public class Configure {
       }
 
       for (Object key : properties.keySet()) {
-        System.out.println(key + " : " + properties.getProperty(key.toString()));
+        logger.info(key + " : " + properties.getProperty(key.toString()));
       }
 
-      if (kafkaConf.startsWith(CLASSPATH_URL_PREFIX)) {
-        kafkaConf = StringUtils.substringAfter(kafkaConf, CLASSPATH_URL_PREFIX);
-        kafkaProperties.load(Configure.class.getClassLoader().getResourceAsStream(kafkaConf));
-      } else {
-        kafkaProperties.load(new FileInputStream(kafkaConf));
-      }
-      for (Object key : kafkaProperties.keySet()) {
-        System.out.println(key + " : " + kafkaProperties.getProperty(key.toString()));
-      }
 
     } catch (IOException ix) {
-      System.out.println(ix);
+      ix.printStackTrace();
     }
   }
 
@@ -62,10 +52,6 @@ public class Configure {
 
   public Properties getProperties() {
     return this.properties;
-  }
-
-  public Properties getKafkaProperties() {
-    return this.kafkaProperties;
   }
 
   public int getInt(String key) {

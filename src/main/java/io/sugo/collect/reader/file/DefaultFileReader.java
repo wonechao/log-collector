@@ -5,6 +5,8 @@ import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -16,9 +18,9 @@ import java.util.Collection;
  * Created by fengxj on 4/8/17.
  */
 public class DefaultFileReader extends AbstractReader {
-
+  private final Logger logger = LoggerFactory.getLogger(DefaultFileReader.class);
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
-  public static final String COLLECT_OFFSET = "collect_offset";
+  public static final String COLLECT_OFFSET = ".collect_offset";
   public static final String FILE_READER_LOG_SUFFIX = "file.reader.log.suffix";
 
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
@@ -28,12 +30,15 @@ public class DefaultFileReader extends AbstractReader {
   @Override
   public void read() {
     new Reader().start();
+    logger.info("DefaultFileReader started");
   }
 
   private class Reader extends Thread {
+
     @Override
     public void run() {
       while (true) {
+        int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
         File offsetFile = new File(directory, COLLECT_OFFSET);
         try {
@@ -46,46 +51,75 @@ public class DefaultFileReader extends AbstractReader {
             lastFileOffset = Long.parseLong(fields[1]);
           }
 
+          long currentOffset = lastFileOffset;
           Collection<File> files = FileUtils.listFiles(directory, new String[]{conf.getProperty(FILE_READER_LOG_SUFFIX)}, false);
           for (File file : files) {
+            String fileName = file.getName();
             if (lastFileName != null) {
-              String fileName = file.getName();
               if (lastFileName.compareTo(fileName) > 0) {
                 continue;
               }
             }
 
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-            randomAccessFile.seek(lastFileOffset);
+            //如果offset为文件尾部，直接读下一个文件
+            if(randomAccessFile.length() == lastFileOffset){
+              currentOffset = 0;
+              continue;
+            }
+
+
+            logger.info("handle file:" + fileName);
+            randomAccessFile.seek(currentOffset);
             String tempString = null;
-            int line = 1;
+            int line = 0;
+            StringBuffer buf = new StringBuffer();
             do {
+              long bufLength = buf.length();
+
               tempString = randomAccessFile.readLine();
-              if (tempString == null)
+              //文件结尾处理
+              if (tempString == null) {
+                if (buf.length() == 0) {
+                  currentOffset = 0;
+                  break;
+                }
+
+                write(buf.toString());
+
+                lastFileOffset = currentOffset;
+                //成功写入则记录消费位点，并继续读下一个文件
+                FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
+                buf = new StringBuffer();
+                currentOffset = 0;
+                StringBuffer logbuf = new StringBuffer();
+                logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
+                logger.info(logbuf.toString());
                 break;
-              boolean res = writer.write(tempString);
-              if (res) {
-                lastFileOffset = randomAccessFile.getFilePointer();
-                if (line % 10000 == 0) {
-                  FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
+              }
+              if (StringUtils.isNotBlank(tempString)) {
+                if (bufLength > 0) {
+                  buf.append("\n");
                 }
-                line++;
-              } else {
-                //发送失败则重试
-                randomAccessFile.seek(lastFileOffset);
-                try {
-                  Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                  e.printStackTrace();
-                }
+                buf.append(tempString);
+              }
+
+              currentOffset = randomAccessFile.getFilePointer();
+              line++;
+              //分批写入
+              if (line % batchSize == 0) {
+                write(buf.toString());
+                lastFileOffset = currentOffset;
+                FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
+                buf = new StringBuffer();
               }
             } while (true);
-            FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
-            lastFileOffset = 0;
           }
         } catch (FileNotFoundException e) {
           e.printStackTrace();
         } catch (IOException e) {
+          e.printStackTrace();
+        } catch (InterruptedException e) {
           e.printStackTrace();
         }
 
@@ -95,6 +129,16 @@ public class DefaultFileReader extends AbstractReader {
           e.printStackTrace();
         }
       }
+    }
+
+    private boolean write(String message) throws InterruptedException {
+      boolean res = writer.write(message);
+      if (!res) {
+        logger.warn("写入失败，1秒后重试!!!");
+        Thread.sleep(1000);
+        return writer.write(message);
+      }
+      return false;
     }
   }
 }
