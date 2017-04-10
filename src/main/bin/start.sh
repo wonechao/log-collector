@@ -12,6 +12,7 @@ conf_file=${project_dir}'/conf/collect.properties'
 pidfile=${project_dir}/collector.pid
 if [ -f $pidfile ];then
    ps -ef |grep `cat ${pidfile}` |grep -v 'grep'
+   if [ $? -ne 0 ];then
       echo '另一个进程已经启动，请先停止！'
       exit 1
    fi
