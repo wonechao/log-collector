@@ -13,7 +13,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Created by fengxj on 4/8/17.
@@ -59,6 +61,7 @@ public class DefaultFileReader extends AbstractReader {
 
           long currentOffset = lastFileOffset;
           Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName, lastFileOffset), null);
+          long current = System.currentTimeMillis();
           for (File file : files) {
             String fileName = file.getName();
 
@@ -74,24 +77,24 @@ public class DefaultFileReader extends AbstractReader {
             randomAccessFile.seek(currentOffset);
             String tempString = null;
             int line = 0;
-            StringBuffer buf = new StringBuffer();
+            List<String> messages = new ArrayList<>();
             do {
-              long bufLength = buf.length();
+              //long bufLength = buf.length();
 
               tempString = randomAccessFile.readLine();
               //文件结尾处理
               if (tempString == null) {
-                if (buf.length() == 0) {
+                if (messages.size() == 0) {
                   currentOffset = 0;
                   break;
                 }
 
-                write(buf.toString());
+                write(messages);
 
                 lastFileOffset = currentOffset;
                 //成功写入则记录消费位点，并继续读下一个文件
                 FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
-                buf = new StringBuffer();
+                messages = new ArrayList<>();
                 currentOffset = 0;
                 StringBuffer logbuf = new StringBuffer();
                 logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
@@ -99,20 +102,25 @@ public class DefaultFileReader extends AbstractReader {
                 break;
               }
               if (StringUtils.isNotBlank(tempString)) {
-                if (bufLength > 0) {
-                  buf.append("\n");
-                }
-                buf.append(tempString);
+                tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
+                messages.add(tempString);
+                //buf.append(tempString);
               }
 
               currentOffset = randomAccessFile.getFilePointer();
               line++;
               //分批写入
               if (line % batchSize == 0) {
-                write(buf.toString());
+                write(messages);
                 lastFileOffset = currentOffset;
                 FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
-                buf = new StringBuffer();
+                messages = new ArrayList<>();
+              }
+              if (line % 10000 == 0) {
+                long now = System.currentTimeMillis();
+                long diff = now - current;
+                current = now;
+                logger.info("current line:" + line + " time:" + diff);
               }
             } while (true);
           }
@@ -132,12 +140,12 @@ public class DefaultFileReader extends AbstractReader {
       }
     }
 
-    private boolean write(String message) throws InterruptedException {
-      boolean res = writer.write(message);
+    private boolean write(List<String> messages) throws InterruptedException {
+      boolean res = writer.write(messages);
       if (!res) {
         logger.warn("写入失败，1秒后重试!!!");
         Thread.sleep(1000);
-        return writer.write(message);
+        return writer.write(messages);
       }
       return false;
     }

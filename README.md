@@ -30,14 +30,14 @@ writer.kafka.topic=    #kafka的topic名称
 reader.class=io.sugo.collect.reader.file.DefaultFileReader
 writer.class=io.sugo.collect.writer.kafka.KafkaWriter
 file.reader.log.regex=.*\.log  # 采集的文件名正则表达式
-file.reader.batch.size=50   # 数据分批发送，此配置为每个批次的大小
+file.reader.batch.size=1000   # 数据分批发送，此配置为每个批次的大小
 
 #kafka 客户端相关配置
 kafka.bootstrap.servers=  #kafka borker地址
 kafka.acks=all
 kafka.retries=0
-kafka.batch.size=16384
-kafka.linger.ms=1
+kafka.batch.size=16384000 #由file.reader.batch.size决定批次大小，所以不需要修改
+kafka.linger.ms=1000000  #由file.reader.batch.size决定批次大小，所以不需要修改
 kafka.buffer.memory=33554432
 kafka.key.serializer=org.apache.kafka.common.serialization.StringSerializer
 kafka.value.serializer=org.apache.kafka.common.serialization.StringSerializer

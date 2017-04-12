@@ -7,6 +7,8 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -36,10 +38,16 @@ public class KafkaWriter extends AbstractWriter {
   }
 
   @Override
-  public boolean write(String message) {
-    Future<RecordMetadata> future = producer.send(new ProducerRecord<>(this.topic, message));
+  public boolean write(List<String> messages) {
+    List<Future<RecordMetadata>> futures = new ArrayList<>();
+    for (String message : messages) {
+      futures.add(producer.send(new ProducerRecord<>(this.topic, message)));
+    }
+    producer.flush();
     try {
-      RecordMetadata recordMetadata = future.get();
+      for (Future<RecordMetadata> future : futures) {
+        future.get();
+      }
     } catch (InterruptedException e) {
       return false;
     } catch (ExecutionException e) {
