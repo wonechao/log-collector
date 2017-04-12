@@ -67,7 +67,7 @@ public class DefaultFileReader extends AbstractReader {
 
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
             //如果offset为文件尾部，直接读下一个文件
-            if (randomAccessFile.length() == lastFileOffset) {
+            if (randomAccessFile.length() <= lastFileOffset) {
               currentOffset = 0;
               continue;
             }
@@ -84,17 +84,14 @@ public class DefaultFileReader extends AbstractReader {
               tempString = randomAccessFile.readLine();
               //文件结尾处理
               if (tempString == null) {
-                if (messages.size() == 0) {
-                  currentOffset = 0;
-                  break;
+                if (messages.size() > 0) {
+                  write(messages);
+                  lastFileOffset = currentOffset;
+                  //成功写入则记录消费位点，并继续读下一个文件
+                  FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
+                  messages = new ArrayList<>();
                 }
 
-                write(messages);
-
-                lastFileOffset = currentOffset;
-                //成功写入则记录消费位点，并继续读下一个文件
-                FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
-                messages = new ArrayList<>();
                 currentOffset = 0;
                 StringBuffer logbuf = new StringBuffer();
                 logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
