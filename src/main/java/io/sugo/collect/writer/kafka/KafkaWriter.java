@@ -41,7 +41,7 @@ public class KafkaWriter extends AbstractWriter {
   public boolean write(List<String> messages) {
     List<Future<RecordMetadata>> futures = new ArrayList<>();
     for (String message : messages) {
-      futures.add(producer.send(new ProducerRecord<>(this.topic, message)));
+      futures.add(producer.send(new ProducerRecord<Integer, String>(this.topic, message)));
     }
     producer.flush();
     try {
