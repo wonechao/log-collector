@@ -28,6 +28,7 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
   public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
+
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     readerMap = new HashMap<String, Reader>();
@@ -126,8 +127,6 @@ public class DefaultFileReader extends AbstractReader {
           int line = 0;
           List<String> messages = new ArrayList<>();
           do {
-            //long bufLength = buf.length();
-
             tempString = randomAccessFile.readLine();
             //文件结尾处理
             if (tempString == null) {
@@ -135,8 +134,7 @@ public class DefaultFileReader extends AbstractReader {
                 write(messages);
                 lastFileOffset = currentOffset;
                 //成功写入则记录消费位点，并继续读下一个文件
-                FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
-                messages = new ArrayList<>();
+                FileUtils.writeStringToFile(offsetFile, fileName + ":" + lastFileOffset);
               }
 
               currentOffset = 0;
@@ -148,7 +146,6 @@ public class DefaultFileReader extends AbstractReader {
             if (StringUtils.isNotBlank(tempString)) {
               tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
               messages.add(tempString);
-              //buf.append(tempString);
             }
 
             currentOffset = randomAccessFile.getFilePointer();
@@ -157,14 +154,15 @@ public class DefaultFileReader extends AbstractReader {
             if (line % batchSize == 0) {
               write(messages);
               lastFileOffset = currentOffset;
-              FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
+              FileUtils.writeStringToFile(offsetFile, fileName + ":" + lastFileOffset);
               messages = new ArrayList<>();
             }
             if (line % 10000 == 0) {
               long now = System.currentTimeMillis();
               long diff = now - current;
               current = now;
-              StringBuffer logbuf = new StringBuffer("current line:").append(line).append(" time:").append(diff);
+              StringBuffer logbuf = new StringBuffer("file:").append(fileName).append(" current line:")
+                      .append(line).append(" time:").append(diff);
               logger.info(logbuf.toString());
             }
           } while (true);
