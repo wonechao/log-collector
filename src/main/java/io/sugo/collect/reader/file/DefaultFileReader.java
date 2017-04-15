@@ -37,9 +37,9 @@ public class DefaultFileReader extends AbstractReader {
   @Override
   public void read() {
     logger.info("DefaultFileReader started");
-    int diffDay = conf.getInt(FILE_READER_SCAN_TIMERANGE);
+    int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
-    long diffTs = diffDay * 24 * 60 * 60 * 1000;
+    long diffTs = diffMin  * 60 * 1000;
     File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
     while (true) {
       addReader(directory);
