@@ -4,136 +4,175 @@ import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.SuffixFileFilter;
+import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by fengxj on 4/8/17.
  */
 public class DefaultFileReader extends AbstractReader {
   private final Logger logger = LoggerFactory.getLogger(DefaultFileReader.class);
+  private Map<String, Reader> readerMap;
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
   public static final String COLLECT_OFFSET = ".collect_offset";
+  public static final String FINISH_FILE = ".finish";
   public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
-
+  public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
+  public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
+    readerMap = new HashMap<String, Reader>();
   }
 
   @Override
   public void read() {
-    new Reader().start();
     logger.info("DefaultFileReader started");
+    int diffDay = conf.getInt(FILE_READER_SCAN_TIMERANGE);
+    int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
+    long diffTs = diffDay * 24 * 60 * 60 * 1000;
+    File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
+    while (true) {
+      addReader(directory);
+      File[] files = directory.listFiles((FileFilter) DirectoryFileFilter.INSTANCE);
+      long currentTime = System.currentTimeMillis();
+      for (File subdir : files) {
+        long lastModTime = subdir.lastModified();
+        //忽略过期目录
+        if (currentTime - lastModTime > diffTs) {
+          File finishFile = new File(subdir, FINISH_FILE);
+          try {
+            if (!finishFile.exists())
+              finishFile.createNewFile();
+          } catch (IOException e) {
+            logger.error("create file failed :" + FINISH_FILE, e);
+          }
+          continue;
+        }
+        addReader(subdir);
+      }
+
+      try {
+        Thread.sleep(inteval);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  private void addReader(File directory) {
+    File finishFile = new File(directory, FINISH_FILE);
+    //忽略已完成目录
+    if (finishFile.exists())
+      return;
+
+    String directoryName = directory.getName();
+    if (readerMap.containsKey(directoryName))
+      return;
+    Reader reader = new Reader(directory);
+    reader.setName("filereader-" + directoryName);
+    reader.start();
+    readerMap.put(directoryName, reader);
   }
 
   private class Reader extends Thread {
+    private final File directory;
+
+    public Reader(File directory) {
+      this.directory = directory;
+    }
 
     @Override
     public void run() {
-      String userDir = System.getProperty("user.dir");
-      logger.info("user.dir:" + userDir);
-      while (true) {
+      logger.info("reading directory:" + directory.getName());
+      try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
-        File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
-        File offsetFile = new File(userDir + "/" + COLLECT_OFFSET);
+        File offsetFile = new File(directory + "/" + COLLECT_OFFSET);
+        long lastFileOffset = 0;
+        String lastFileName = null;
+        String offsetStr = null;
+        if (offsetFile.exists()) {
+          offsetStr = FileUtils.readFileToString(offsetFile);
+          String[] fields = StringUtils.split(offsetStr.trim(), ':');
+          lastFileName = fields[0];
+          lastFileOffset = Long.parseLong(fields[1]);
+        }
+
+        long currentOffset = lastFileOffset;
+        Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName, lastFileOffset), null);
+        long current = System.currentTimeMillis();
+        for (File file : files) {
+          String fileName = file.getName();
+
+          RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
+          if (lastFileName != null && !lastFileName.equals(fileName))
+            currentOffset = 0;
+          //如果offset为文件尾部，直接读下一个文件
+          if (randomAccessFile.length() <= currentOffset)
+            continue;
 
 
-        try {
-          long lastFileOffset = 0;
-          String lastFileName = null;
-          String offsetStr = null;
-          if (offsetFile.exists()) {
-            offsetStr = FileUtils.readFileToString(offsetFile);
-            String[] fields = StringUtils.split(offsetStr.trim(), ':');
-            lastFileName = fields[0];
-            lastFileOffset = Long.parseLong(fields[1]);
-          }
+          logger.info("handle file:" + fileName);
+          randomAccessFile.seek(currentOffset);
+          String tempString = null;
+          int line = 0;
+          List<String> messages = new ArrayList<>();
+          do {
+            //long bufLength = buf.length();
 
-          long currentOffset = lastFileOffset;
-          Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName, lastFileOffset), null);
-          long current = System.currentTimeMillis();
-          for (File file : files) {
-            String fileName = file.getName();
-
-            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-            //如果offset为文件尾部，直接读下一个文件
-            if (randomAccessFile.length() <= lastFileOffset) {
-              currentOffset = 0;
-              continue;
-            }
-
-
-            logger.info("handle file:" + fileName);
-            randomAccessFile.seek(currentOffset);
-            String tempString = null;
-            int line = 0;
-            List<String> messages = new ArrayList<>();
-            do {
-              //long bufLength = buf.length();
-
-              tempString = randomAccessFile.readLine();
-              //文件结尾处理
-              if (tempString == null) {
-                if (messages.size() > 0) {
-                  write(messages);
-                  lastFileOffset = currentOffset;
-                  //成功写入则记录消费位点，并继续读下一个文件
-                  FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
-                  messages = new ArrayList<>();
-                }
-
-                currentOffset = 0;
-                StringBuffer logbuf = new StringBuffer();
-                logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
-                logger.info(logbuf.toString());
-                break;
-              }
-              if (StringUtils.isNotBlank(tempString)) {
-                tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
-                messages.add(tempString);
-                //buf.append(tempString);
-              }
-
-              currentOffset = randomAccessFile.getFilePointer();
-              line++;
-              //分批写入
-              if (line % batchSize == 0) {
+            tempString = randomAccessFile.readLine();
+            //文件结尾处理
+            if (tempString == null) {
+              if (messages.size() > 0) {
                 write(messages);
                 lastFileOffset = currentOffset;
+                //成功写入则记录消费位点，并继续读下一个文件
                 FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
                 messages = new ArrayList<>();
               }
-              if (line % 10000 == 0) {
-                long now = System.currentTimeMillis();
-                long diff = now - current;
-                current = now;
-                logger.info("current line:" + line + " time:" + diff);
-              }
-            } while (true);
-          }
-        } catch (FileNotFoundException e) {
-          e.printStackTrace();
-        } catch (IOException e) {
-          e.printStackTrace();
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
 
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+              currentOffset = 0;
+              StringBuffer logbuf = new StringBuffer();
+              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
+              logger.info(logbuf.toString());
+              break;
+            }
+            if (StringUtils.isNotBlank(tempString)) {
+              tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
+              messages.add(tempString);
+              //buf.append(tempString);
+            }
+
+            currentOffset = randomAccessFile.getFilePointer();
+            line++;
+            //分批写入
+            if (line % batchSize == 0) {
+              write(messages);
+              lastFileOffset = currentOffset;
+              FileUtils.writeStringToFile(offsetFile, file.getName() + ":" + lastFileOffset);
+              messages = new ArrayList<>();
+            }
+            if (line % 10000 == 0) {
+              long now = System.currentTimeMillis();
+              long diff = now - current;
+              current = now;
+              StringBuffer logbuf = new StringBuffer("current line:").append(line).append(" time:").append(diff);
+              logger.info(logbuf.toString());
+            }
+          } while (true);
         }
+      } catch (Exception e) {
+        logger.error("reader terminated abnormally ", e);
+      } finally {
+        readerMap.remove(directory.getName());
       }
     }
 

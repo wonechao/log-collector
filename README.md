@@ -31,6 +31,8 @@ reader.class=io.sugo.collect.reader.file.DefaultFileReader
 writer.class=io.sugo.collect.writer.kafka.KafkaWriter
 file.reader.log.regex=.*\.log  # 采集的文件名正则表达式
 file.reader.batch.size=1000   # 数据分批发送，此配置为每个批次的大小
+file.reader.scan.timerange=2 #目录过期时间，采集程序不采集超过此时间的目录，单位(day)
+file.reader.scan.interval=10000 #目录扫描时间，单位(ms)
 
 #kafka 客户端相关配置
 kafka.bootstrap.servers=  #kafka borker地址

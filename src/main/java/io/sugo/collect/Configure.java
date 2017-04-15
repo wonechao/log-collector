@@ -55,6 +55,14 @@ public class Configure {
   }
 
   public int getInt(String key) {
-    return Integer.parseInt(this.properties.get(key).toString());
+    Object obj = this.properties.get(key);
+    if (obj == null)
+      return 0;
+    try {
+      return Integer.parseInt(this.properties.get(key).toString());
+    } catch (Exception e) {
+      logger.error("", e);
+    }
+    return 0;
   }
 }
