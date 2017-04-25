@@ -28,7 +28,7 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
   public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
-
+  private String metaBaseDir;
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     readerMap = new HashMap<String, Reader>();
@@ -36,20 +36,23 @@ public class DefaultFileReader extends AbstractReader {
 
   @Override
   public void read() {
+    metaBaseDir = System.getProperty("user.dir") + "/meta/";
     logger.info("DefaultFileReader started");
     int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
-    long diffTs = diffMin  * 60 * 1000;
+    long diffTs = diffMin  * 60l * 1000l;
     File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
     while (true) {
       addReader(directory);
       File[] files = directory.listFiles((FileFilter) DirectoryFileFilter.INSTANCE);
       long currentTime = System.currentTimeMillis();
       for (File subdir : files) {
+        File metaDir = new File(metaBaseDir + "/" + subdir.getName());
+        metaDir.mkdirs();
         long lastModTime = subdir.lastModified();
         //忽略过期目录
         if (currentTime - lastModTime > diffTs) {
-          File finishFile = new File(subdir, FINISH_FILE);
+          File finishFile = new File(metaDir, FINISH_FILE);
           try {
             if (!finishFile.exists())
               finishFile.createNewFile();
@@ -58,7 +61,12 @@ public class DefaultFileReader extends AbstractReader {
           }
           continue;
         }
-        addReader(subdir);
+
+        File finishFile = new File(metaDir, FINISH_FILE);
+        //忽略已完成目录
+        if (!finishFile.exists())
+          addReader(subdir);
+
       }
 
       try {
@@ -70,11 +78,6 @@ public class DefaultFileReader extends AbstractReader {
   }
 
   private void addReader(File directory) {
-    File finishFile = new File(directory, FINISH_FILE);
-    //忽略已完成目录
-    if (finishFile.exists())
-      return;
-
     String directoryName = directory.getName();
     if (readerMap.containsKey(directoryName))
       return;
@@ -96,7 +99,9 @@ public class DefaultFileReader extends AbstractReader {
       logger.info("reading directory:" + directory.getName());
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
-        File offsetFile = new File(directory + "/" + COLLECT_OFFSET);
+        File metaDir = new File(metaBaseDir + "/" + directory.getName());
+        metaDir.mkdirs();
+        File offsetFile = new File(metaDir + "/" + COLLECT_OFFSET);
         long lastFileOffset = 0;
         String lastFileName = null;
         String offsetStr = null;
@@ -116,9 +121,9 @@ public class DefaultFileReader extends AbstractReader {
           RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
           if (lastFileName != null && !lastFileName.equals(fileName))
             currentOffset = 0;
-          //如果offset为文件尾部，直接读下一个文件
-          if (randomAccessFile.length() <= currentOffset)
-            continue;
+          //如果offset大于文件长度，从0开始读
+          if (currentOffset > 0 && randomAccessFile.length() < currentOffset)
+             currentOffset=0;
 
 
           logger.info("handle file:" + fileName);
