@@ -15,6 +15,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by fengxj on 4/8/17.
@@ -28,10 +30,16 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
   public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
+  public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
+
   private String metaBaseDir;
+  ExecutorService fixedThreadPool;
+
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     readerMap = new HashMap<String, Reader>();
+    int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
+    fixedThreadPool = Executors.newFixedThreadPool(threadSize);
   }
 
   @Override
@@ -81,13 +89,13 @@ public class DefaultFileReader extends AbstractReader {
     String directoryName = directory.getName();
     if (readerMap.containsKey(directoryName))
       return;
+
     Reader reader = new Reader(directory);
-    reader.setName("filereader-" + directoryName);
-    reader.start();
+    fixedThreadPool.execute(reader);
     readerMap.put(directoryName, reader);
   }
 
-  private class Reader extends Thread {
+  private class Reader implements Runnable {
     private final File directory;
 
     public Reader(File directory) {
@@ -96,7 +104,7 @@ public class DefaultFileReader extends AbstractReader {
 
     @Override
     public void run() {
-      logger.info("reading directory:" + directory.getName());
+      logger.info("reading directory:" + directory.getAbsolutePath());
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         File metaDir = new File(metaBaseDir + "/" + directory.getName());
@@ -121,12 +129,14 @@ public class DefaultFileReader extends AbstractReader {
           RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
           if (lastFileName != null && !lastFileName.equals(fileName))
             currentOffset = 0;
+
+          long fileLength = randomAccessFile.length();
           //如果offset大于文件长度，从0开始读
-          if (currentOffset > 0 && randomAccessFile.length() < currentOffset)
+          if (currentOffset > 0 && fileLength < currentOffset)
              currentOffset=0;
 
 
-          logger.info("handle file:" + fileName);
+          logger.info("handle file:" + file.getAbsolutePath());
           randomAccessFile.seek(currentOffset);
           String tempString = null;
           int line = 0;
@@ -166,8 +176,8 @@ public class DefaultFileReader extends AbstractReader {
               long now = System.currentTimeMillis();
               long diff = now - current;
               current = now;
-              StringBuffer logbuf = new StringBuffer("file:").append(fileName).append(" current line:")
-                      .append(line).append(" time:").append(diff);
+              StringBuffer logbuf = new StringBuffer("file:").append(file.getAbsolutePath()).append(" current line:")
+                      .append(line).append(" time:").append(diff).append(" percent:").append((int)((double) currentOffset/(double)fileLength * 100)).append("%");
               logger.info(logbuf.toString());
             }
           } while (true);
