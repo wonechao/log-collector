@@ -14,12 +14,10 @@ public class SugoFileFilter implements IOFileFilter {
 
   private final Pattern pattern;
   private final String lastFileName;
-  private final long lastFileOffset;
 
-  public SugoFileFilter(String regEx, String lastFileName, long lastFileOffset) {
+  public SugoFileFilter(String regEx, String lastFileName) {
     this.pattern = Pattern.compile(regEx);
     this.lastFileName = lastFileName;
-    this.lastFileOffset = lastFileOffset;
 
   }
 
@@ -32,8 +30,6 @@ public class SugoFileFilter implements IOFileFilter {
         int comp = lastFileName.compareTo(fileName);
         if (comp > 0) {
           return false;
-        } else if (comp == 0) {
-          return file.length() > lastFileOffset;
         }
       }
       return true;

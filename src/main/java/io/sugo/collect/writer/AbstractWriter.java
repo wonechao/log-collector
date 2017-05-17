@@ -10,9 +10,6 @@ import java.util.List;
 public abstract class AbstractWriter {
   private Configure conf;
 
-  public AbstractWriter() {
-  }
-
   public AbstractWriter(Configure conf) {
     this.conf = conf;
   }
