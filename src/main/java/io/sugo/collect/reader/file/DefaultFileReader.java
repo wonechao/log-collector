@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 /**
  * Created by fengxj on 4/8/17.
@@ -27,6 +28,7 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
   public static final String COLLECT_OFFSET = ".collect_offset";
   public static final String FINISH_FILE = ".finish";
+  public static final String FILE_READER_FILTER_REGEX = "file.reader.filter.regex";
   public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
   public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
@@ -105,6 +107,7 @@ public class DefaultFileReader extends AbstractReader {
     @Override
     public void run() {
       logger.info("reading directory:" + directory.getAbsolutePath());
+      Pattern pattern = Pattern.compile(conf.getProperty(FILE_READER_FILTER_REGEX));
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         File metaDir = new File(metaBaseDir + "/" + directory.getName());
@@ -159,6 +162,12 @@ public class DefaultFileReader extends AbstractReader {
               break;
             }
             if (StringUtils.isNotBlank(tempString)) {
+              boolean match = pattern.matcher(tempString).matches();
+              if (!match) {
+                logger.error("===");
+                logger.error(tempString);
+                logger.error(file.getAbsolutePath());
+              }
               tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
               messages.add(tempString);
             }
