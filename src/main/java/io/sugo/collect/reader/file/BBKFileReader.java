@@ -6,26 +6,25 @@ import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.lang.StringUtils;
-import org.apache.kafka.common.utils.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Created by fengxj on 4/8/17.
+ * Created by fengxj on 5/25/17.
  */
-public class DefaultFileReader extends AbstractReader {
-  private static final String UTF8 = "UTF-8";
-  private final Logger logger = LoggerFactory.getLogger(DefaultFileReader.class);
+public class BBKFileReader extends AbstractReader {
+  private final Logger logger = LoggerFactory.getLogger(BBKFileReader.class);
   private Map<String, Reader> readerMap;
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
   public static final String COLLECT_OFFSET = ".collect_offset";
@@ -36,10 +35,11 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
 
+  private static final String UTF8 = "UTF-8";
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
 
-  public DefaultFileReader(Configure conf, AbstractWriter writer) {
+  public BBKFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
@@ -49,10 +49,10 @@ public class DefaultFileReader extends AbstractReader {
   @Override
   public void read() {
     metaBaseDir = System.getProperty("user.dir") + "/meta/";
-    logger.info("DefaultFileReader started");
+    logger.info("BBKFileReader started");
     int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
-    long diffTs = diffMin  * 60l * 1000l;
+    long diffTs = diffMin * 60l * 1000l;
     File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
     while (true) {
       addReader(directory);
@@ -131,7 +131,6 @@ public class DefaultFileReader extends AbstractReader {
         long currentOffset = lastFileOffset;
         long currentByteOffset = lastByteOffset;
         Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName), null);
-
         long current = System.currentTimeMillis();
         for (File file : files) {
           String fileName = file.getName();
@@ -173,12 +172,29 @@ public class DefaultFileReader extends AbstractReader {
               currentOffset = 0;
               currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
-              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
+              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
               break;
             }
             if (StringUtils.isNotBlank(tempString)) {
-                messages.add(tempString);
+              //tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
+              try {
+                int idxFirst = tempString.indexOf("]");
+                String logtype = tempString.substring(1, idxFirst);
+                int idxSecond = idxFirst + 22;
+                String logtime = tempString.substring(idxFirst + 3, idxSecond);
+
+                String json = tempString.substring(idxSecond + 3);//exclude {
+
+                StringBuffer sb = new StringBuffer("{\"logtype\":\"").append(logtype).append("\",\"d|logtime\":\"")
+                        .append(df.parse(logtime).getTime()).append("\",").append(json);
+
+                messages.add(sb.toString());
+                //Thread.sleep(10);
+              } catch (Exception e) {
+                logger.error("", e);
+              }
+
             }
 
             currentOffset += (tempString.length() + 1);
@@ -220,6 +236,16 @@ public class DefaultFileReader extends AbstractReader {
         return writer.write(messages);
       }
       return false;
+    }
+
+    private char[] getChars (byte[] bytes) {
+      Charset cs = Charset.forName ("UTF-8");
+      ByteBuffer bb = ByteBuffer.allocate (bytes.length);
+      bb.put (bytes);
+      bb.flip ();
+      CharBuffer cb = cs.decode (bb);
+
+      return cb.array();
     }
   }
 }
