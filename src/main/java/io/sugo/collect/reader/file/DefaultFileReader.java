@@ -131,7 +131,13 @@ public class DefaultFileReader extends AbstractReader {
         long currentOffset = lastFileOffset;
         long currentByteOffset = lastByteOffset;
         Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName), null);
-
+        List<File> sortFiles = new ArrayList<>(files);
+        Collections.sort(sortFiles, new Comparator<File>() {
+          @Override
+          public int compare(File o1, File o2) {
+            return o1.getPath().compareTo(o2.getPath());
+          }
+        });
         long current = System.currentTimeMillis();
         for (File file : files) {
           String fileName = file.getName();
