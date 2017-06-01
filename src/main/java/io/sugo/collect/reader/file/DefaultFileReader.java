@@ -6,23 +6,25 @@ import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.lang.StringUtils;
+import org.apache.kafka.common.utils.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.Charset;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Created by fengxj on 4/8/17.
  */
 public class DefaultFileReader extends AbstractReader {
+  private static final String UTF8 = "UTF-8";
   private final Logger logger = LoggerFactory.getLogger(DefaultFileReader.class);
   private Map<String, Reader> readerMap;
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
@@ -107,6 +109,7 @@ public class DefaultFileReader extends AbstractReader {
     @Override
     public void run() {
       logger.info("reading directory:" + directory.getAbsolutePath());
+      DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
       Pattern pattern = Pattern.compile(conf.getProperty(FILE_READER_FILTER_REGEX));
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
@@ -114,6 +117,7 @@ public class DefaultFileReader extends AbstractReader {
         metaDir.mkdirs();
         File offsetFile = new File(metaDir + "/" + COLLECT_OFFSET);
         long lastFileOffset = 0;
+        long lastByteOffset = 0;
         String lastFileName = null;
         String offsetStr = null;
         if (offsetFile.exists()) {
@@ -121,73 +125,89 @@ public class DefaultFileReader extends AbstractReader {
           String[] fields = StringUtils.split(offsetStr.trim(), ':');
           lastFileName = fields[0];
           lastFileOffset = Long.parseLong(fields[1]);
+          lastByteOffset = Long.parseLong(fields[2]);
         }
 
         long currentOffset = lastFileOffset;
+        long currentByteOffset = lastByteOffset;
         Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName), null);
+        List<File> sortFiles = new ArrayList<>(files);
+        Collections.sort(sortFiles, new Comparator<File>() {
+          @Override
+          public int compare(File o1, File o2) {
+            return o1.getPath().compareTo(o2.getPath());
+          }
+        });
         long current = System.currentTimeMillis();
         for (File file : files) {
           String fileName = file.getName();
+          BufferedReader br = new BufferedReader(
+                  new InputStreamReader(new FileInputStream(file), Charset.forName(UTF8)));
 
-          RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-          if (lastFileName != null && !lastFileName.equals(fileName))
+          //FileInputStream fis = new FileInputStream(file);
+          if (lastFileName != null && !lastFileName.equals(fileName)){
+            currentByteOffset = 0;
             currentOffset = 0;
-
-          long fileLength = randomAccessFile.length();
+          }
+          long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
-          if (currentOffset > 0 && fileLength < currentOffset)
-             currentOffset=0;
-
+          if (currentByteOffset > 0 && fileLength < currentByteOffset){
+            currentOffset = 0;
+            currentByteOffset = 0;
+          }
 
           logger.info("handle file:" + file.getAbsolutePath());
-          randomAccessFile.seek(currentOffset);
+
+          br.skip(currentOffset);
+
           String tempString = null;
           int line = 0;
+          int error = 0;
           List<String> messages = new ArrayList<>();
+          byte[] bytes = new byte[1024];
           do {
-            tempString = randomAccessFile.readLine();
+            tempString = br.readLine();
+
             //文件结尾处理
             if (tempString == null) {
               if (messages.size() > 0) {
                 write(messages);
-                lastFileOffset = currentOffset;
                 //成功写入则记录消费位点，并继续读下一个文件
-                FileUtils.writeStringToFile(offsetFile, fileName + ":" + lastFileOffset);
+                FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentOffset + ":" + currentByteOffset);
               }
 
               currentOffset = 0;
+              currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
               logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
               logger.info(logbuf.toString());
               break;
             }
             if (StringUtils.isNotBlank(tempString)) {
-              boolean match = pattern.matcher(tempString).matches();
-              if (!match) {
-                logger.error("===");
-                logger.error(tempString);
-                logger.error(file.getAbsolutePath());
-              }
-              tempString = new String(tempString.getBytes("ISO-8859-1"), "UTF-8");
-              messages.add(tempString);
+                messages.add(tempString);
             }
 
-            currentOffset = randomAccessFile.getFilePointer();
+            currentOffset += (tempString.length() + 1);
+            currentByteOffset += (tempString.getBytes(UTF8).length + 1);
             line++;
             //分批写入
             if (line % batchSize == 0) {
               write(messages);
-              lastFileOffset = currentOffset;
-              FileUtils.writeStringToFile(offsetFile, fileName + ":" + lastFileOffset);
+              FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentOffset + ":" + currentByteOffset);
               messages = new ArrayList<>();
             }
-            if (line % 10000 == 0) {
+
+            if (line % 100000 == 0) {
               long now = System.currentTimeMillis();
               long diff = now - current;
               current = now;
-              StringBuffer logbuf = new StringBuffer("file:").append(file.getAbsolutePath()).append(" current line:")
-                      .append(line).append(" time:").append(diff).append(" percent:").append((int)((double) currentOffset/(double)fileLength * 100)).append("%");
-              logger.info(logbuf.toString());
+              if (logger.isDebugEnabled()){
+                StringBuffer logbuf = new StringBuffer("file:").append(file.getAbsolutePath()).append(" current line:")
+                        .append(line).append(" time:").append(diff).append(" percent:").append((int) ((double) currentByteOffset / (double) fileLength * 100)).append("%");
+                logger.info(logbuf.toString());
+                logger.info("error:" + error);
+                logger.info("handle:" + line);
+              }
             }
           } while (true);
         }
