@@ -1,5 +1,7 @@
 package io.sugo.collect.reader.file;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
@@ -21,9 +23,9 @@ import java.util.regex.Pattern;
 /**
  * Created by fengxj on 4/8/17.
  */
-public class DefaultFileReader extends AbstractReader {
+public class BBKFileReader extends AbstractReader {
   private static final String UTF8 = "UTF-8";
-  private final Logger logger = LoggerFactory.getLogger(DefaultFileReader.class);
+  private final Logger logger = LoggerFactory.getLogger(BBKFileReader.class);
   private Map<String, Reader> readerMap;
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
   public static final String COLLECT_OFFSET = ".collect_offset";
@@ -33,12 +35,17 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
+  public static final String FILE_READER_HOST = "file.reader.host";
 
+  private String host;
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
 
-  public DefaultFileReader(Configure conf, AbstractWriter writer) {
+  public BBKFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
+    host = conf.getProperty(FILE_READER_HOST);
+    if (host == null)
+      host = "";
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
     fixedThreadPool = Executors.newFixedThreadPool(threadSize);
@@ -47,10 +54,10 @@ public class DefaultFileReader extends AbstractReader {
   @Override
   public void read() {
     metaBaseDir = System.getProperty("user.dir") + "/meta/";
-    logger.info("DefaultFileReader started");
+    logger.info("BBKFileReader started");
     int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
-    long diffTs = diffMin  * 60l * 1000l;
+    long diffTs = diffMin * 60l * 1000l;
     File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
     while (true) {
       addReader(directory);
@@ -106,9 +113,9 @@ public class DefaultFileReader extends AbstractReader {
 
     @Override
     public void run() {
-      logger.info("reading directory:" + directory.getAbsolutePath());
+      String dirPath = directory.getAbsolutePath();
+      logger.info("reading directory:" + dirPath);
       DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      Pattern pattern = Pattern.compile(conf.getProperty(FILE_READER_FILTER_REGEX));
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         File metaDir = new File(metaBaseDir + "/" + directory.getName());
@@ -139,30 +146,31 @@ public class DefaultFileReader extends AbstractReader {
         long current = System.currentTimeMillis();
         for (File file : files) {
           String fileName = file.getName();
-          BufferedReader br = new BufferedReader(
-                  new InputStreamReader(new FileInputStream(file), Charset.forName(UTF8)));
 
           //FileInputStream fis = new FileInputStream(file);
-          if (lastFileName != null && !lastFileName.equals(fileName)){
+          if (lastFileName != null && !lastFileName.equals(fileName)) {
             currentByteOffset = 0;
             currentOffset = 0;
           }
           long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
-          if (currentByteOffset > 0 && fileLength < currentByteOffset){
+          if (currentByteOffset > 0 && fileLength < currentByteOffset) {
             currentOffset = 0;
             currentByteOffset = 0;
           }
 
           logger.info("handle file:" + file.getAbsolutePath());
 
-          br.skip(currentOffset);
+          FileInputStream fis = new FileInputStream(file);
+          fis.skip(currentByteOffset);
+          BufferedReader br = new BufferedReader(
+              new InputStreamReader(fis, Charset.forName(UTF8)));
+          //br.skip(currentOffset);
 
           String tempString = null;
           int line = 0;
           int error = 0;
           List<String> messages = new ArrayList<>();
-          byte[] bytes = new byte[1024];
           do {
             tempString = br.readLine();
 
@@ -182,7 +190,25 @@ public class DefaultFileReader extends AbstractReader {
               break;
             }
             if (StringUtils.isNotBlank(tempString)) {
-                messages.add(tempString);
+              try {
+                int idxFirst = tempString.indexOf("]");
+                String logtype = tempString.substring(1, idxFirst);
+                int idxSecond = idxFirst + 22;
+                String logtime = tempString.substring(idxFirst + 3, idxSecond);
+
+                String json = tempString.substring(idxSecond + 2);
+                long time = df.parse(logtime).getTime();
+
+                JSONObject jobj = JSON.parseObject(json);
+                jobj.put("logtype", logtype);
+                jobj.put("d|logtime", time);
+                jobj.put("directory", dirPath);
+                jobj.put("host", host);
+                messages.add(jobj.toString());
+              } catch (Exception e) {
+                logger.error("failed to parse:" + tempString, e);
+              }
+
             }
 
             currentOffset += (tempString.length() + 1);
@@ -199,9 +225,9 @@ public class DefaultFileReader extends AbstractReader {
               long now = System.currentTimeMillis();
               long diff = now - current;
               current = now;
-              if (logger.isDebugEnabled()){
+              if (logger.isDebugEnabled()) {
                 StringBuffer logbuf = new StringBuffer("file:").append(file.getAbsolutePath()).append(" current line:")
-                        .append(line).append(" time:").append(diff).append(" percent:").append((int) ((double) currentByteOffset / (double) fileLength * 100)).append("%");
+                    .append(line).append(" time:").append(diff).append(" percent:").append((int) ((double) currentByteOffset / (double) fileLength * 100)).append("%");
                 logger.info(logbuf.toString());
                 logger.info("error:" + error);
                 logger.info("handle:" + line);
