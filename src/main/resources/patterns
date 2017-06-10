@@ -31,7 +31,7 @@ HOSTNAME \b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62
 HOST %{HOSTNAME:UNWANTED}
 IPORHOST (?:%{HOSTNAME:UNWANTED}|%{IP:UNWANTED})
 HOSTPORT (?:%{IPORHOST}:%{POSINT:PORT})
-CUSTOM_HOSTPORT (?:%{IPORHOST:UNWANTED}:%{POSINT:UNWANTED})
+CUSTOM_HOSTPORT (?:%{IPORHOST:UNWANTED}:%{POSINT:UNWANTED})|(-)
 
 # paths
 PATH (?:%{UNIXPATH}|%{WINPATH})
@@ -112,5 +112,6 @@ COMMONAPACHELOG_DATATYPED %{IPORHOST:clientip} %{USER:ident;boolean} %{USER:auth
 # Log Levels
 LOGLEVEL ([A|a]lert|ALERT|[T|t]race|TRACE|[D|d]ebug|DEBUG|[N|n]otice|NOTICE|[I|i]nfo|INFO|[W|w]arn?(?:ing)?|WARN?(?:ING)?|[E|e]rr?(?:or)?|ERR?(?:OR)?|[C|c]rit?(?:ical)?|CRIT?(?:ICAL)?|[F|f]atal|FATAL|[S|s]evere|SEVERE|EMERG(?:ENCY)?|[Ee]merg(?:ency)?)
 
-JSON \{.*\}
+JSON (\{.*\})|(-)|()
+CUSTOM_DATA .*
 

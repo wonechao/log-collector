@@ -60,9 +60,8 @@ public class KafkaWriter extends AbstractWriter {
       for (Future<RecordMetadata> future : futures) {
         future.get();
       }
-    } catch (InterruptedException e) {
-      return false;
-    } catch (ExecutionException e) {
+    } catch (InterruptedException | ExecutionException e) {
+      logger.debug("", e);
       return false;
     }
     return true;

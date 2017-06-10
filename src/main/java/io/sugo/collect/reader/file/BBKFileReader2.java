@@ -42,7 +42,7 @@ public class BBKFileReader2 extends AbstractReader {
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
   public static final String FILE_READER_HOST = "file.reader.host";
   public static final String FILE_READER_GROK_EXPR = "file.reader.grok.expr";
-
+  public static final String FILE_READER_GROK_PATTERNS_PATH = "file.reader.grok.patterns.path";
 
   private String host;
   private String metaBaseDir;
@@ -122,7 +122,7 @@ public class BBKFileReader2 extends AbstractReader {
     public void run() {
       Grok grok;
       try {
-        grok = Grok.create("/Users/sugo/log-collector/src/main/resources/patterns");
+        grok = Grok.create(conf.getProperty(FILE_READER_GROK_PATTERNS_PATH));
         String grokExpr = conf.getProperty(FILE_READER_GROK_EXPR);
         grok.compile(grokExpr);
         if (StringUtils.isBlank(grokExpr)){
@@ -205,7 +205,7 @@ public class BBKFileReader2 extends AbstractReader {
               currentOffset = 0;
               currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
-              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
+              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
               break;
             }
@@ -219,23 +219,36 @@ public class BBKFileReader2 extends AbstractReader {
                 for (String key: gmMap.keySet()) {
                   type = "s";
                   Object value = gmMap.get(key);
-                  if (key.equals("time"))
+                  if (key.equals("logtime"))
                     type = "d";
-                  else if (value instanceof Integer)
-                    type = "i";
-                  else if (value instanceof Long)
-                    type = "l";
-                  else if (value instanceof Float)
-                    type = "f";
+//                  else if (value instanceof Integer)
+//                    type = "i";
+//                  else if (value instanceof Long)
+//                    type = "l";
+//                  else if (value instanceof Float)
+//                    type = "f";
 
-                  if (key.startsWith("json")){
+                  if (key.startsWith("json_") && value != null){
                     String jsonStr = value.toString().replace("\\x5C","\\").replace("\\x22","\"").replace("\\x20", " ");
-                    Map<String,Object> jsonMap = JSON.parseObject(jsonStr, Map.class);
-                    tmpMap.putAll(jsonMap);
+                    try {
+                      Map<String,Object> jsonMap = JSON.parseObject(jsonStr, Map.class);
+                      tmpMap.putAll(jsonMap);
+                    }catch (Exception e){
+                      tmpMap.put(type + "|" + key, value);
+                    }
                     continue;
                   }
                   tmpMap.put(type + "|" + key, value);
 
+                }
+                if (tmpMap.size() > 0){
+                  tmpMap.put("directory", dirPath);
+                  tmpMap.put("host", host);
+                  tmpMap.put("filename", fileName);
+                }else {
+                  error ++;
+                  if (logger.isDebugEnabled())
+                    logger.debug(tempString);
                 }
                 messages.add(JSON.toJSONString(tmpMap));
               } catch (Exception e) {
