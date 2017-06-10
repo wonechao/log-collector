@@ -43,7 +43,8 @@ public class CSVParser extends AbstractParser {
       JsonArray jsonArray = new JsonParser().parse(dimJson).getAsJsonArray();
       dimensionList = new ArrayList<>();
       for (JsonElement user : jsonArray) {
-        Dimension dimension = gson.fromJson(user, new TypeToken<Dimension>() {}.getType());
+        Dimension dimension = gson.fromJson(user, new TypeToken<Dimension>() {
+        }.getType());
         dimensionList.add(dimension);
       }
     } catch (IOException e) {
