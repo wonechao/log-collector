@@ -1,22 +1,22 @@
 package io.sugo.collect.reader.file;
 
+import com.alibaba.fastjson.JSON;
 import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
+import io.sugo.grok.api.Grok;
+import io.sugo.grok.api.exception.GrokException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Pattern;
 
 /**
  * Created by fengxj on 4/8/17.
@@ -28,17 +28,23 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_LOG_DIR = "file.reader.log.dir";
   public static final String COLLECT_OFFSET = ".collect_offset";
   public static final String FINISH_FILE = ".finish";
-  public static final String FILE_READER_FILTER_REGEX = "file.reader.filter.regex";
   public static final String FILE_READER_LOG_REGEX = "file.reader.log.regex";
   public static final String FILE_READER_SCAN_TIMERANGE = "file.reader.scan.timerange";
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
+  public static final String FILE_READER_HOST = "file.reader.host";
+  public static final String FILE_READER_GROK_EXPR = "file.reader.grok.expr";
+  public static final String FILE_READER_GROK_PATTERNS_PATH = "file.reader.grok.patterns.path";
 
+  private String host;
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
 
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
+    host = conf.getProperty(FILE_READER_HOST);
+    if (host == null)
+      host = "";
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
     fixedThreadPool = Executors.newFixedThreadPool(threadSize);
@@ -50,7 +56,7 @@ public class DefaultFileReader extends AbstractReader {
     logger.info("DefaultFileReader started");
     int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
-    long diffTs = diffMin  * 60l * 1000l;
+    long diffTs = diffMin * 60l * 1000l;
     File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
     while (true) {
       addReader(directory);
@@ -106,9 +112,21 @@ public class DefaultFileReader extends AbstractReader {
 
     @Override
     public void run() {
-      logger.info("reading directory:" + directory.getAbsolutePath());
-      DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      Pattern pattern = Pattern.compile(conf.getProperty(FILE_READER_FILTER_REGEX));
+      Grok grok;
+      try {
+        grok = Grok.create(conf.getProperty(FILE_READER_GROK_PATTERNS_PATH));
+        String grokExpr = conf.getProperty(FILE_READER_GROK_EXPR);
+        grok.compile(grokExpr);
+        if (StringUtils.isBlank(grokExpr)){
+          logger.error(FILE_READER_GROK_EXPR + "must be set!");
+          return;
+        }
+      } catch (GrokException e) {
+        logger.error("", e);
+        return;
+      }
+      String dirPath = directory.getAbsolutePath();
+      logger.info("reading directory:" + dirPath);
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         File metaDir = new File(metaBaseDir + "/" + directory.getName());
@@ -139,30 +157,29 @@ public class DefaultFileReader extends AbstractReader {
         long current = System.currentTimeMillis();
         for (File file : files) {
           String fileName = file.getName();
-          BufferedReader br = new BufferedReader(
-                  new InputStreamReader(new FileInputStream(file), Charset.forName(UTF8)));
 
-          //FileInputStream fis = new FileInputStream(file);
-          if (lastFileName != null && !lastFileName.equals(fileName)){
+          if (lastFileName != null && !lastFileName.equals(fileName)) {
             currentByteOffset = 0;
             currentOffset = 0;
           }
           long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
-          if (currentByteOffset > 0 && fileLength < currentByteOffset){
+          if (currentByteOffset > 0 && fileLength < currentByteOffset) {
             currentOffset = 0;
             currentByteOffset = 0;
           }
 
           logger.info("handle file:" + file.getAbsolutePath());
 
-          br.skip(currentOffset);
+          FileInputStream fis = new FileInputStream(file);
+          fis.skip(currentByteOffset);
+          BufferedReader br = new BufferedReader(
+                  new InputStreamReader(fis, Charset.forName(UTF8)));
 
           String tempString = null;
           int line = 0;
           int error = 0;
           List<String> messages = new ArrayList<>();
-          byte[] bytes = new byte[1024];
           do {
             tempString = br.readLine();
 
@@ -177,12 +194,31 @@ public class DefaultFileReader extends AbstractReader {
               currentOffset = 0;
               currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
-              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line);
+              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
               break;
             }
             if (StringUtils.isNotBlank(tempString)) {
+              if (parser == null){
                 messages.add(tempString);
+              }else {
+                try {
+                  Map<String, Object> gmMap = parser.parse(tempString);
+
+                  if (gmMap.size() > 0){
+                    gmMap.put("directory", dirPath);
+                    gmMap.put("host", host);
+                    gmMap.put("filename", fileName);
+                  }else {
+                    error ++;
+                    if (logger.isDebugEnabled())
+                      logger.debug(tempString);
+                  }
+                  messages.add(JSON.toJSONString(gmMap));
+                } catch (Exception e) {
+                  logger.error("failed to parse:" + tempString, e);
+                }
+              }
             }
 
             currentOffset += (tempString.length() + 1);
@@ -199,7 +235,7 @@ public class DefaultFileReader extends AbstractReader {
               long now = System.currentTimeMillis();
               long diff = now - current;
               current = now;
-              if (logger.isDebugEnabled()){
+              if (logger.isDebugEnabled()) {
                 StringBuffer logbuf = new StringBuffer("file:").append(file.getAbsolutePath()).append(" current line:")
                         .append(line).append(" time:").append(diff).append(" percent:").append((int) ((double) currentByteOffset / (double) fileLength * 100)).append("%");
                 logger.info(logbuf.toString());

@@ -2,7 +2,7 @@ package io.sugo.collect.reader.file;
 
 
 import org.apache.commons.io.filefilter.IOFileFilter;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.regex.Pattern;
