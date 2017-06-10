@@ -61,7 +61,7 @@ public class DefaultFileReader extends AbstractReader {
 
   @Override
   public void read() {
-    metaBaseDir = System.getProperty("user.dir") + "/meta/";
+    metaBaseDir = conf.getProperty(Configure.USER_DIR) + "/meta/";
     logger.info("DefaultFileReader started");
     int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);

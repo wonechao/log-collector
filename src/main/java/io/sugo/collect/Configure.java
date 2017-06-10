@@ -17,8 +17,9 @@ public class Configure {
   private static final String COLLECT_PROPERTIES = "collect.properties";
   public static final String WRITER_CLASS = "writer.class";
   public static final String READER_CLASS = "reader.class";
-  public static final  String PARSER_CLASS = "parser.class";;
+  public static final String PARSER_CLASS = "parser.class";
   public static final String FILE_READER_BATCH_SIZE = "file.reader.batch.size";
+  public static final String USER_DIR = "user.dir";
 
   private String collectorConf;
   private Properties properties = new Properties();
@@ -41,7 +42,9 @@ public class Configure {
         logger.info(key + " : " + properties.getProperty(key.toString()));
       }
 
-
+      if (!properties.contains(USER_DIR)){
+        properties.put(USER_DIR, System.getProperty(USER_DIR));
+      }
     } catch (IOException ix) {
       ix.printStackTrace();
     }
@@ -50,9 +53,20 @@ public class Configure {
   public String getProperty(String key) {
     return properties.getProperty(key);
   }
+  public String getProperty(String key, String defaultValue) {
+    if (!properties.containsKey(key))
+      return defaultValue;
+    return getProperty(key);
+  }
 
   public Properties getProperties() {
     return this.properties;
+  }
+
+  public int getInt(String key, int defaultValue) {
+    if (!properties.containsKey(key))
+      return defaultValue;
+    return getInt(key);
   }
 
   public int getInt(String key) {
