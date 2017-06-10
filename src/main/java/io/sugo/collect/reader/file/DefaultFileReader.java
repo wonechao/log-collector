@@ -5,8 +5,6 @@ import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
-import io.sugo.grok.api.Grok;
-import io.sugo.grok.api.exception.GrokException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.lang3.StringUtils;
@@ -36,8 +34,6 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
   public static final String FILE_READER_HOST = "file.reader.host";
-  public static final String FILE_READER_GROK_EXPR = "file.reader.grok.expr";
-  public static final String FILE_READER_GROK_PATTERNS_PATH = "file.reader.grok.patterns.path";
 
   private String host;
   private String metaBaseDir;
@@ -46,7 +42,7 @@ public class DefaultFileReader extends AbstractReader {
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
-    if (host == null){
+    if (StringUtils.isBlank(host)){
       try {
         InetAddress addr = InetAddress.getLocalHost();
         host=addr.getHostAddress();
@@ -121,19 +117,6 @@ public class DefaultFileReader extends AbstractReader {
 
     @Override
     public void run() {
-      Grok grok;
-      try {
-        grok = Grok.create(conf.getProperty(FILE_READER_GROK_PATTERNS_PATH));
-        String grokExpr = conf.getProperty(FILE_READER_GROK_EXPR);
-        grok.compile(grokExpr);
-        if (StringUtils.isBlank(grokExpr)){
-          logger.error(FILE_READER_GROK_EXPR + "must be set!");
-          return;
-        }
-      } catch (GrokException e) {
-        logger.error("", e);
-        return;
-      }
       String dirPath = directory.getAbsolutePath();
       logger.info("reading directory:" + dirPath);
       try {
