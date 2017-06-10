@@ -6,6 +6,7 @@ import io.sugo.collect.Configure;
 import io.sugo.grok.api.Grok;
 import io.sugo.grok.api.Match;
 import io.sugo.grok.api.exception.GrokException;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,14 +28,22 @@ public class GrokParser extends AbstractParser {
     super(conf);
     try {
       String patternPath = conf.getProperty(FILE_READER_GROK_PATTERNS_PATH);
+      if (StringUtils.isBlank(patternPath)){
+        patternPath = conf.getProperty(Configure.USER_DIR) + "conf/patterns";
+      }
       if (!patternPath.startsWith("/"))
         patternPath = conf.getProperty(Configure.USER_DIR) + "/" + patternPath;
       logger.info("final patternPath:" + patternPath);
       grok = Grok.create(patternPath);
       String grokExpr = conf.getProperty(FILE_READER_GROK_EXPR);
+      if (StringUtils.isBlank(grokExpr)){
+        logger.error(FILE_READER_GROK_EXPR + "must be set!");
+        System.exit(1);
+      }
       grok.compile(grokExpr);
     } catch (GrokException e) {
       e.printStackTrace();
+      System.exit(1);
     }
   }
 

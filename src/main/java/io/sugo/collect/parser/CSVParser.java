@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import io.sugo.collect.Configure;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,10 @@ public class CSVParser extends AbstractParser {
       if (fields.length > i)
         value = fields[i];
       try {
-        result.put(dim.getName(), dim.getValue(value));
+        Object readValue = dim.getValue(value);
+        if (readValue == null)
+          continue;
+        result.put(dim.getName(), readValue);
       } catch (ParseException e) {
         if (logger.isDebugEnabled()) {
           logger.error("", e);
@@ -130,8 +134,12 @@ public class CSVParser extends AbstractParser {
     }
 
     public Object getValue(String value) throws ParseException {
-      if (value == null)
-        return defaultValue;
+      if (StringUtils.isBlank(value)){
+        if (defaultValue != null)
+          return defaultValue;
+
+        return null;
+      }
 
       switch (type) {
         case STRING:
