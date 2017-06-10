@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -44,8 +46,14 @@ public class DefaultFileReader extends AbstractReader {
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
-    if (host == null)
-      host = "";
+    if (host == null){
+      try {
+        InetAddress addr = InetAddress.getLocalHost();
+        host=addr.getHostAddress();
+      } catch (UnknownHostException e) {
+        e.printStackTrace();
+      }
+    }
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
     fixedThreadPool = Executors.newFixedThreadPool(threadSize);
