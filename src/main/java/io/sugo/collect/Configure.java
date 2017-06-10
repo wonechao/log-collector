@@ -1,6 +1,6 @@
 package io.sugo.collect;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +17,7 @@ public class Configure {
   private static final String COLLECT_PROPERTIES = "collect.properties";
   public static final String WRITER_CLASS = "writer.class";
   public static final String READER_CLASS = "reader.class";
+  public static final  String PARSER_CLASS = "parser.class";;
   public static final String FILE_READER_BATCH_SIZE = "file.reader.batch.size";
 
   private String collectorConf;
