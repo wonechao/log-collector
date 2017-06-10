@@ -28,7 +28,7 @@ public class GrokParser extends AbstractParser {
     try {
       String patternPath = conf.getProperty(FILE_READER_GROK_PATTERNS_PATH);
       if (!patternPath.startsWith("/"))
-        patternPath = System.getProperty("user.dir") + "/" + patternPath;
+        patternPath = conf.getProperty(Configure.USER_DIR) + "/" + patternPath;
       logger.info("final patternPath:" + patternPath);
       grok = Grok.create(patternPath);
       String grokExpr = conf.getProperty(FILE_READER_GROK_EXPR);
