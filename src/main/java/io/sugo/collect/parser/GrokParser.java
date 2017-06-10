@@ -1,6 +1,7 @@
 package io.sugo.collect.parser;
 
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.grok.api.Grok;
 import io.sugo.grok.api.Match;
@@ -16,6 +17,7 @@ import java.util.Map;
  */
 public class GrokParser extends AbstractParser {
   private final Logger logger = LoggerFactory.getLogger(GrokParser.class);
+  private static final Gson gson = new GsonBuilder().create();
   public static final String FILE_READER_GROK_PATTERNS_PATH = "file.reader.grok.patterns.path";
   public static final String FILE_READER_GROK_EXPR = "file.reader.grok.expr";
 
@@ -52,7 +54,7 @@ public class GrokParser extends AbstractParser {
           continue;
         }
         try {
-          jsonMap.put(key, JSON.parseObject(jsonStr, Map.class));
+          jsonMap.put(key, gson.fromJson(jsonStr, Map.class));
         }catch (Exception e){
           logger.error("json parse fail: " + value);
         }

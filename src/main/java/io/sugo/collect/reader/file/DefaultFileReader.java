@@ -1,6 +1,7 @@
 package io.sugo.collect.reader.file;
 
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.writer.AbstractWriter;
@@ -105,7 +106,7 @@ public class DefaultFileReader extends AbstractReader {
 
   private class Reader implements Runnable {
     private final File directory;
-
+    private final Gson gson = new GsonBuilder().create();
     public Reader(File directory) {
       this.directory = directory;
     }
@@ -214,7 +215,7 @@ public class DefaultFileReader extends AbstractReader {
                     if (logger.isDebugEnabled())
                       logger.debug(tempString);
                   }
-                  messages.add(JSON.toJSONString(gmMap));
+                  messages.add(gson.toJson(gmMap));
                 } catch (Exception e) {
                   logger.error("failed to parse:" + tempString, e);
                 }
