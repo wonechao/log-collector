@@ -14,6 +14,7 @@ public abstract class AbstractReader {
   protected Configure conf;
   protected AbstractWriter writer;
   protected AbstractParser parser;
+  protected boolean running;
 
   protected AbstractReader(Configure conf, AbstractWriter writer) {
     this.conf = conf;
@@ -28,6 +29,11 @@ public abstract class AbstractReader {
     } catch (Exception e) {
       e.printStackTrace();
     }
+    this.running = true;
+  }
+
+  public void stop(){
+    this.running = false;
   }
 
   public abstract void read();

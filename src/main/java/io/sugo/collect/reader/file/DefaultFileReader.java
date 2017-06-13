@@ -18,6 +18,8 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by fengxj on 4/8/17.
@@ -56,6 +58,19 @@ public class DefaultFileReader extends AbstractReader {
   }
 
   @Override
+  public void stop(){
+    super.stop();
+    while (!fixedThreadPool.isTerminated()){
+      logger.info("Waiting for the reader to complete , still " + readerMap.size());
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  @Override
   public void read() {
     metaBaseDir = conf.getProperty(Configure.USER_DIR) + "/meta/";
     logger.info("DefaultFileReader started");
@@ -63,7 +78,7 @@ public class DefaultFileReader extends AbstractReader {
     int inteval = conf.getInt(FILE_READER_SCAN_INTERVAL);
     long diffTs = diffMin * 60l * 1000l;
     File directory = new File(conf.getProperty(FILE_READER_LOG_DIR));
-    while (true) {
+    while (running) {
       addReader(directory);
       File[] files = directory.listFiles((FileFilter) DirectoryFileFilter.INSTANCE);
       long currentTime = System.currentTimeMillis();
@@ -99,13 +114,13 @@ public class DefaultFileReader extends AbstractReader {
   }
 
   private void addReader(File directory) {
-    String directoryName = directory.getName();
+    String directoryName = directory.getAbsolutePath();
     if (readerMap.containsKey(directoryName))
       return;
 
     Reader reader = new Reader(directory);
-    fixedThreadPool.execute(reader);
     readerMap.put(directoryName, reader);
+    fixedThreadPool.execute(reader);
   }
 
   private class Reader implements Runnable {
@@ -118,6 +133,11 @@ public class DefaultFileReader extends AbstractReader {
     @Override
     public void run() {
       String dirPath = directory.getAbsolutePath();
+      if (!running){
+        readerMap.remove(dirPath);
+        return;
+      }
+
       logger.info("reading directory:" + dirPath);
       try {
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
@@ -130,6 +150,8 @@ public class DefaultFileReader extends AbstractReader {
         String offsetStr = null;
         if (offsetFile.exists()) {
           offsetStr = FileUtils.readFileToString(offsetFile);
+          if(StringUtils.isBlank(offsetStr))
+            logger.error(offsetFile.getAbsolutePath() + " is empty!!");
           String[] fields = StringUtils.split(offsetStr.trim(), ':');
           lastFileName = fields[0];
           lastFileOffset = Long.parseLong(fields[1]);
@@ -235,13 +257,13 @@ public class DefaultFileReader extends AbstractReader {
                 logger.info("handle:" + line);
               }
             }
-          } while (true);
+          } while (running);
         }
       } catch (Exception e) {
         logger.error("reader terminated abnormally ", e);
       } finally {
-        readerMap.remove(directory.getName());
-      }
+        readerMap.remove(dirPath);
+    }
     }
 
     private boolean write(List<String> messages) throws InterruptedException {
