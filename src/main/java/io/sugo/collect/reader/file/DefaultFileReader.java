@@ -60,8 +60,17 @@ public class DefaultFileReader extends AbstractReader {
   @Override
   public void stop(){
     super.stop();
+    int time = 0;
     while (!fixedThreadPool.isTerminated()){
-      logger.info("Waiting for the reader to complete , still " + readerMap.size());
+      if (time >= 10)
+        break;
+      time ++;
+
+      int readerSize = readerMap.size();
+
+      if (readerSize == 0)
+        break;
+      logger.info("Waiting for the reader to complete , still " + readerSize);
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
