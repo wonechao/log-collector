@@ -232,12 +232,12 @@ public class DefaultFileReader extends AbstractReader {
                     gmMap.put("directory", dirPath);
                     gmMap.put("host", host);
                     gmMap.put("filename", fileName);
+                    messages.add(gson.toJson(gmMap));
                   }else {
                     error ++;
                     if (logger.isDebugEnabled())
                       logger.debug(tempString);
                   }
-                  messages.add(gson.toJson(gmMap));
                 } catch (Exception e) {
                   logger.error("failed to parse:" + tempString, e);
                 }

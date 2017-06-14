@@ -74,6 +74,9 @@ public class GrokParser extends AbstractParser {
         continue;
       }
     }
+    if(jsonMap == null)
+      return gmMap;
+
     for (String key: jsonMap.keySet()) {
       gmMap.remove(key);
       Map<String,Object> value = jsonMap.get(key);

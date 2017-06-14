@@ -43,7 +43,6 @@ public class KafkaWriter extends AbstractWriter {
       now = System.currentTimeMillis();
       logger.debug("send to kafka, message size:" + messages.size());
     }
-    List<Future<RecordMetadata>> futures = new ArrayList<>();
 
     KafkaCallBack callBack = new KafkaCallBack();
     for (String message : messages) {
@@ -63,21 +62,6 @@ public class KafkaWriter extends AbstractWriter {
         return true;
       }
     }
-
-
-//    if (logger.isDebugEnabled()) {
-//      long current = System.currentTimeMillis();
-//      logger.debug("send to kafka successfully, druration(ms):" + (current - now));
-//    }
-//    try {
-//      for (Future<RecordMetadata> future : futures) {
-//        future.get();
-//      }
-//    } catch (InterruptedException | ExecutionException e) {
-//      logger.error("", e);
-//      return false;
-//    }
-//    return true;
   }
 
   class KafkaCallBack implements Callback {
