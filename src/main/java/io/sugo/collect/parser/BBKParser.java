@@ -18,7 +18,9 @@ public class BBKParser extends GrokParser{
   public Map<String, Object> parse(String line) {
     Map<String, Object> map = super.parse(line);
     if (map.containsKey(EXCEPTION_KEY)){
-      map.put("t|" + EXCEPTION_KEY, map.get(EXCEPTION_KEY));
+      Object exVal = map.get(EXCEPTION_KEY);
+      map.put("i|exception_size", exVal.toString().length());
+      map.put("t|" + EXCEPTION_KEY, exVal);
       map.remove(EXCEPTION_KEY);
     }
     return map;
