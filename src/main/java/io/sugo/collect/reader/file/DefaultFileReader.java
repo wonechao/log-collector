@@ -192,7 +192,8 @@ public class DefaultFileReader extends AbstractReader {
             currentByteOffset = 0;
           }
 
-          logger.info("handle file:" + file.getAbsolutePath());
+          String fileAbsolutePath = file.getAbsolutePath();
+          logger.info("handle file:" + fileAbsolutePath);
 
           FileInputStream fis = new FileInputStream(file);
           fis.skip(currentByteOffset);
@@ -239,7 +240,11 @@ public class DefaultFileReader extends AbstractReader {
                       logger.debug(tempString);
                   }
                 } catch (Exception e) {
-                  logger.error("failed to parse:" + tempString, e);
+                  StringBuffer logbuf = new StringBuffer();
+                  logbuf.append("file:").append(fileAbsolutePath).append(" currentOffset:")
+                      .append(currentOffset).append("currentByteOffset:").
+                      append(currentByteOffset).append(" failed to parse:").append(tempString);
+                  logger.error(logbuf.toString(), e);
                 }
               }
             }
@@ -259,7 +264,7 @@ public class DefaultFileReader extends AbstractReader {
               long diff = now - current;
               current = now;
               if (logger.isDebugEnabled()) {
-                StringBuffer logbuf = new StringBuffer("file:").append(file.getAbsolutePath()).append(" current line:")
+                StringBuffer logbuf = new StringBuffer("file:").append(fileAbsolutePath).append(" current line:")
                         .append(line).append(" time:").append(diff).append(" percent:").append((int) ((double) currentByteOffset / (double) fileLength * 100)).append("%");
                 logger.info(logbuf.toString());
                 logger.info("error:" + error);
