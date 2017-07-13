@@ -40,19 +40,23 @@ public class Converter {
   }
 
   public static KeyValue convert(String key, Object value) {
+
     String[] spec = key.split(";|:", 3);
+    String readKey = spec[0];
     try {
       if (spec.length == 1) {
-        return new KeyValue(spec[0], value);
+        return new KeyValue(readKey, value);
       } else if (spec.length == 2) {
-        return new KeyValue(convertKey(spec[0], spec[1]), getConverter(spec[1]).convert(String.valueOf(value)));
+        readKey = convertKey(spec[0], spec[1]);
+        return new KeyValue(readKey, getConverter(spec[1]).convert(String.valueOf(value)));
       } else if (spec.length == 3) {
-        return new KeyValue(convertKey(spec[0], spec[1]), getConverter(spec[1]).convert(String.valueOf(value), spec[2]));
+        readKey = convertKey(spec[0], spec[1]);
+        return new KeyValue(readKey, getConverter(spec[1]).convert(String.valueOf(value), spec[2]));
       } else {
         return new KeyValue(spec[0], value, "Unsupported spec :" + key);
       }
     } catch (Exception e) {
-      return new KeyValue(spec[0], value, e.toString());
+      return new KeyValue(readKey, "");
     }
   }
 
