@@ -18,8 +18,6 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by fengxj on 4/8/17.
@@ -41,6 +39,7 @@ public class DefaultFileReader extends AbstractReader {
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
 
+  private int maxSize;
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
@@ -55,6 +54,7 @@ public class DefaultFileReader extends AbstractReader {
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
     fixedThreadPool = Executors.newFixedThreadPool(threadSize);
+    maxSize = conf.getInt(Configure.READER_MESSAGE_MAX_SIZE_BYTES);
   }
 
   @Override
@@ -153,7 +153,6 @@ public class DefaultFileReader extends AbstractReader {
         File metaDir = new File(metaBaseDir + "/" + directory.getName());
         metaDir.mkdirs();
         File offsetFile = new File(metaDir + "/" + COLLECT_OFFSET);
-        long lastFileOffset = 0;
         long lastByteOffset = 0;
         String lastFileName = null;
         String offsetStr = null;
@@ -163,11 +162,12 @@ public class DefaultFileReader extends AbstractReader {
             logger.error(offsetFile.getAbsolutePath() + " is empty!!");
           String[] fields = StringUtils.split(offsetStr.trim(), ':');
           lastFileName = fields[0];
-          lastFileOffset = Long.parseLong(fields[1]);
-          lastByteOffset = Long.parseLong(fields[2]);
+          if (fields.length == 3)
+            lastByteOffset = Long.parseLong(fields[2]);
+          else
+            lastByteOffset = Long.parseLong(fields[1]);
         }
 
-        long currentOffset = lastFileOffset;
         long currentByteOffset = lastByteOffset;
         Collection<File> files = FileUtils.listFiles(directory, new SugoFileFilter(conf.getProperty(FILE_READER_LOG_REGEX), lastFileName), null);
         List<File> sortFiles = new ArrayList<>(files);
@@ -183,12 +183,10 @@ public class DefaultFileReader extends AbstractReader {
 
           if (lastFileName != null && !lastFileName.equals(fileName)) {
             currentByteOffset = 0;
-            currentOffset = 0;
           }
           long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
           if (currentByteOffset > 0 && fileLength < currentByteOffset) {
-            currentOffset = 0;
             currentByteOffset = 0;
           }
 
@@ -212,17 +210,19 @@ public class DefaultFileReader extends AbstractReader {
               if (messages.size() > 0) {
                 write(messages);
                 //成功写入则记录消费位点，并继续读下一个文件
-                FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentOffset + ":" + currentByteOffset);
+                FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
               }
 
-              currentOffset = 0;
               currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
               logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
               break;
             }
-            if (StringUtils.isNotBlank(tempString)) {
+            int tmpSize = tempString.getBytes(UTF8).length;
+            if (tmpSize >= maxSize)
+              logger.error(tempString, new Exception("record too large, size: " + tmpSize));
+            if (StringUtils.isNotBlank(tempString) && tmpSize < maxSize) {
               if (parser == null){
                 messages.add(tempString);
               }else {
@@ -241,21 +241,19 @@ public class DefaultFileReader extends AbstractReader {
                   }
                 } catch (Exception e) {
                   StringBuffer logbuf = new StringBuffer();
-                  logbuf.append("file:").append(fileAbsolutePath).append(" currentOffset:")
-                      .append(currentOffset).append("currentByteOffset:").
+                  logbuf.append("file:").append(fileAbsolutePath).append("currentByteOffset:").
                       append(currentByteOffset).append(" failed to parse:").append(tempString);
                   logger.error(logbuf.toString(), e);
                 }
               }
             }
 
-            currentOffset += (tempString.length() + 1);
-            currentByteOffset += (tempString.getBytes(UTF8).length + 1);
+            currentByteOffset += (tmpSize + 1);
             line++;
             //分批写入
             if (line % batchSize == 0) {
               write(messages);
-              FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentOffset + ":" + currentByteOffset);
+              FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
               messages = new ArrayList<>();
             }
 

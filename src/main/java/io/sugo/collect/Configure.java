@@ -19,6 +19,7 @@ public class Configure {
   public static final String READER_CLASS = "reader.class";
   public static final String PARSER_CLASS = "parser.class";
   public static final String FILE_READER_BATCH_SIZE = "file.reader.batch.size";
+  public static final String READER_MESSAGE_MAX_SIZE_BYTES = "reader.message.max_size.bytes";
   public static final String USER_DIR = "user.dir";
 
   private String collectorConf;
