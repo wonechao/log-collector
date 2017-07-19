@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
@@ -44,77 +45,48 @@ public class KafkaWriter extends AbstractWriter {
       logger.debug("send to kafka, message size:" + messages.size());
     }
 
-    KafkaCallBack callBack = new KafkaCallBack();
     Map<Future<RecordMetadata>, String> messageFutureMap = new HashMap<>();
     for (String message : messages) {
-      Future<RecordMetadata> future = producer.send(new ProducerRecord<Integer, String>(this.topic, message), callBack);
+      Future<RecordMetadata> future = producer.send(new ProducerRecord<Integer, String>(this.topic, message));
       messageFutureMap.put(future, message);
     }
     producer.flush();
 
-    while (true){
-      if (callBack.getError() > 0){
-        Set<Long> errMsgHashSet = callBack.getErrMsgHashSet();
-        List<String> retryMsg = new ArrayList<>();
-        for (Future<RecordMetadata> future : messageFutureMap.keySet()) {
-          FutureRecordMetadata futureRecordMetadata = (FutureRecordMetadata)future;
-         long checksum = futureRecordMetadata.checksum();
-          if (errMsgHashSet.contains(checksum)){
-            retryMsg.add(messageFutureMap.get(future));
-          }
-        }
+    List<String> errMsgList = null;
+    for (Future<RecordMetadata> future : messageFutureMap.keySet()) {
+      try {
+        future.get();
+      } catch (Exception e) {
+        logger.error("", e);
+        String message = messageFutureMap.get(future);
+        if (errMsgList == null)
+          errMsgList = new ArrayList<>();
 
-        currentRetryTime += 1;
-        if (currentRetryTime >= 5){
-          logger.warn("failed to send to kafka ,error:" + callBack.getError());
-          currentRetryTime = 0;
-          return false;
-        }
-
-        logger.warn("failed to send to kafka, error:" + callBack.getError() + " retrying...");
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return write(retryMsg);
+        errMsgList.add(message);
       }
-      if (callBack.getSuccess() == messages.size()){
-        if (logger.isDebugEnabled()) {
-          long current = System.currentTimeMillis();
-          logger.debug("success to send to kafka, druration(ms):" + (current - now));
-        }
+    }
+
+    if (errMsgList != null && errMsgList.size() > 0) {
+      currentRetryTime += 1;
+      if (currentRetryTime >= 5) {
+        logger.error("failed to send to kafka ,error:" + errMsgList.size());
         currentRetryTime = 0;
-        return true;
+        return false;
       }
-    }
-  }
-
-  class KafkaCallBack implements Callback {
-    private int success;
-    private int error;
-    private Set<Long> errMsgHashSet;
-
-    public void onCompletion(RecordMetadata metadata, Exception exception) {
-      if (metadata != null) {
-        success ++;
-      } else {
-        error ++;
-        if (errMsgHashSet == null)
-          errMsgHashSet = new HashSet<>();
-        errMsgHashSet.add(metadata.checksum());
-        if (logger.isDebugEnabled())
-          logger.error("", exception);
+      logger.warn("failed to send to kafka, error:" + errMsgList.size() + " retrying...");
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
       }
+      return write(errMsgList);
     }
 
-    public int getSuccess(){
-      return success;
+    if (logger.isDebugEnabled()) {
+      long current = System.currentTimeMillis();
+      logger.debug("success to send to kafka, druration(ms):" + (current - now));
     }
-    public int getError(){
-      return error;
-    }
-    public Set<Long> getErrMsgHashSet() { return errMsgHashSet; }
+    currentRetryTime = 0;
+    return true;
   }
-
 }

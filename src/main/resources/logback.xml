@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="LOG_DIR" value="./" />
+
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%file:%line] - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="logfile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}log/log_collector.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}log/log_collector.log.%d{yyyyMMdd}</fileNamePattern>
+            <maxHistory>3</maxHistory>
+
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{MM-dd|HH:mm:ss.SSS} [%thread] %-5level [%file:%line] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="errorfile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}log/log_collector_error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}log/log_collector_error.log.%d{yyyyMMdd}</fileNamePattern>
+            <maxHistory>3</maxHistory>
+
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{MM-dd|HH:mm:ss.SSS} [%thread] %-5level [%file:%line] - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="errorAppender" level="ERROR" addtivity="false">
+          <appender-ref ref="errorfile"/>
+    </logger>
+    <root level="INFO">
+        <appender-ref ref="stdout"/>
+        <appender-ref ref="logfile"/>
+        <appender-ref ref="errorfile"/>
+    </root>
+</configuration>
