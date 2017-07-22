@@ -73,13 +73,13 @@ public class GrokParser extends AbstractParser {
       }
 
     } catch (GrokException e) {
-      e.printStackTrace();
+      logger.error("", e);
       System.exit(1);
     }
   }
 
   @Override
-  public Map<String, Object> parse(String line) {
+  public Map<String, Object> parse(String line) throws Exception {
     Match gm = grok.match(line);
     gm.captures();
     Map<String, Object> gmMap = gm.toMap();
@@ -97,12 +97,8 @@ public class GrokParser extends AbstractParser {
           jsonMap.put(key, null);
           continue;
         }
-        try {
-          jsonMap.put(key, gson.fromJson(jsonStr, Map.class));
-        }catch (Exception e){
-          logger.error("json parse fail: " + value);
-        }
-        continue;
+        jsonMap.put(key, gson.fromJson(jsonStr, Map.class));
+
       }
     }
     if(jsonMap == null)
