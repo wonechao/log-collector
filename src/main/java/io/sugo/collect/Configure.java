@@ -20,7 +20,9 @@ public class Configure {
   public static final String PARSER_CLASS = "parser.class";
   public static final String FILE_READER_BATCH_SIZE = "file.reader.batch.size";
   public static final String READER_MESSAGE_MAX_SIZE_BYTES = "reader.message.max_size.bytes";
+  public static final int DEFAULT_READER_MESSAGE_MAX_SIZE_BYTES = 1048576;
   public static final String USER_DIR = "user.dir";
+  public static final String ERROR_MESSAGE_HTTP_COLLECTOR_URL = "error.message.http_collector.url";
 
   private String collectorConf;
   private Properties properties = new Properties();

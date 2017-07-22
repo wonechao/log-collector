@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.reader.AbstractReader;
+import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
@@ -38,6 +39,7 @@ public class DefaultFileReader extends AbstractReader {
   private String host;
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
+  private String errMsgCollectorUrl;
 
   private int maxSize;
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
@@ -54,7 +56,8 @@ public class DefaultFileReader extends AbstractReader {
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
     fixedThreadPool = Executors.newFixedThreadPool(threadSize);
-    maxSize = conf.getInt(Configure.READER_MESSAGE_MAX_SIZE_BYTES);
+    maxSize = conf.getInt(Configure.READER_MESSAGE_MAX_SIZE_BYTES, Configure.DEFAULT_READER_MESSAGE_MAX_SIZE_BYTES);
+    errMsgCollectorUrl = conf.getProperty(Configure.ERROR_MESSAGE_HTTP_COLLECTOR_URL);
   }
 
   @Override
@@ -220,8 +223,13 @@ public class DefaultFileReader extends AbstractReader {
               break;
             }
             int tmpSize = tempString.getBytes(UTF8).length;
-            if (tmpSize >= maxSize)
-              logger.error(tempString, new Exception("record too large, size: " + tmpSize));
+            if (tmpSize >= maxSize){
+              error ++;
+              logger.error(host + " " + fileAbsolutePath, new Exception("record too large, size: " + tmpSize));
+              if (StringUtils.isNotBlank(errMsgCollectorUrl))
+                HttpUtil.post(errMsgCollectorUrl, tempString);
+            }
+
             if (StringUtils.isNotBlank(tempString) && tmpSize < maxSize) {
               if (parser == null){
                 messages.add(tempString);
@@ -244,6 +252,8 @@ public class DefaultFileReader extends AbstractReader {
                   logbuf.append("file:").append(fileAbsolutePath).append("currentByteOffset:").
                       append(currentByteOffset).append(" failed to parse:").append(tempString);
                   logger.error(logbuf.toString(), e);
+                  //if (StringUtils.isNotBlank(errMsgCollectorUrl))
+                  //  HttpUtil.post(errMsgCollectorUrl, tempString);
                 }
               }
             }

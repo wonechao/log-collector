@@ -13,5 +13,5 @@ public abstract class AbstractParser {
   public AbstractParser(Configure conf){
     this.conf = conf;
   }
-  public abstract Map<String, Object> parse(String line);
+  public abstract Map<String, Object> parse(String line) throws Exception;
 }

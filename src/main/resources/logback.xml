@@ -31,6 +31,11 @@
         <encoder>
             <pattern>%d{MM-dd|HH:mm:ss.SSS} [%thread] %-5level [%file:%line] - %msg%n</pattern>
         </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
     </appender>
     <logger name="errorAppender" level="ERROR" addtivity="false">
           <appender-ref ref="errorfile"/>
