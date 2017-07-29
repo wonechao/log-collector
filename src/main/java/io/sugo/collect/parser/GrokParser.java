@@ -84,26 +84,23 @@ public class GrokParser extends AbstractParser {
     gm.captures();
     Map<String, Object> gmMap = gm.toMap();
     Map<String,Map<String, Object>> jsonMap = null;
-    for (String key: gmMap.keySet()) {
-      Object value = gmMap.get(key);
-      if (key.startsWith("json_") && value != null){
-        if (jsonMap == null)
-          jsonMap = new HashMap<>();
-        //参考nginx日志模块ngx_http_log_escape方法
-        //" \ del  会被转为\x22 \x5C \x7F
-        //https://github.com/nginx/nginx/blob/9ad18e43ac2c9956399018cbb998337943988333/src/http/modules/ngx_http_log_module.c
-        String jsonStr = value.toString().replace("\\x5C","\\").replace("\\x22","\"");
-        if (jsonStr.equals("-")){
-          jsonMap.put(key, null);
-          continue;
-        }
-        jsonMap.put(key, gson.fromJson(jsonStr, Map.class));
-
-      }
-    }
-    if(jsonMap == null)
-      return gmMap;
-
+//    for (String key: gmMap.keySet()) {
+//      Object value = gmMap.get(key);
+//      if (key.startsWith("json_") && value != null){
+//        if (jsonMap == null)
+//          jsonMap = new HashMap<>();
+//        //参考nginx日志模块ngx_http_log_escape方法
+//        //" \ del  会被转为\x22 \x5C \x7F
+//        //https://github.com/nginx/nginx/blob/9ad18e43ac2c9956399018cbb998337943988333/src/http/modules/ngx_http_log_module.c
+//        String jsonStr = value.toString().replace("\\x5C","\\").replace("\\x22","\"");
+//        if (jsonStr.equals("-")){
+//          jsonMap.put(key, null);
+//          continue;
+//        }
+//        jsonMap.put(key, gson.fromJson(jsonStr, Map.class));
+//
+//      }
+//    }
     //ip解析
     if (StringUtils.isNotBlank(ipField)){
        String ip = (String) gmMap.get(ipField);
@@ -111,6 +108,10 @@ public class GrokParser extends AbstractParser {
        gmMap.putAll(ipDetailMap);
 
     }
+
+    if(jsonMap == null)
+      return gmMap;
+
     for (String key: jsonMap.keySet()) {
       gmMap.remove(key);
       Map<String,Object> value = jsonMap.get(key);

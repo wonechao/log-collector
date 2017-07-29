@@ -182,19 +182,25 @@ public class Match {
         }
       }
 
-      if (capture.containsKey(key)) {
-    	Object currentValue = capture.get(key);
-    	if(currentValue instanceof List) {
-          ((List<Object>) currentValue).add(value);
-    	} else {
-    	  List<Object> list = new ArrayList<Object>();
-    	  list.add(currentValue);
-    	  list.add(value);
-    	  capture.put(key, list);
-    	}
+      if (value instanceof Map) {
+        Map<String, Object> valueMap = (Map<String, Object>) value;
+        capture.putAll(valueMap);
       } else {
-    	capture.put(key, value);
+        if (capture.containsKey(key)) {
+          Object currentValue = capture.get(key);
+          if(currentValue instanceof List) {
+            ((List<Object>) currentValue).add(value);
+          } else {
+            List<Object> list = new ArrayList<Object>();
+            list.add(currentValue);
+            list.add(value);
+            capture.put(key, list);
+          }
+        } else {
+          capture.put(key, value);
+        }
       }
+
       
       it.remove(); // avoids a ConcurrentModificationException
     }

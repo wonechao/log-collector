@@ -1,11 +1,11 @@
 package io.sugo.grok.api;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Convert String argument to the right type.
@@ -28,7 +28,7 @@ public class Converter {
     converters.put("date", new TimeStampConverter());
     converters.put("datetime", new TimeStampConverter());
     converters.put("string", new StringConverter());
-
+    converters.put("json", new JsonConverter());
   }
 
   private static IConverter getConverter(String key) throws Exception {
@@ -61,15 +61,15 @@ public class Converter {
   }
 
   private static String convertKey(String key, String type) {
-    switch (type) {
-      case "short":
-      case "int": return "i|" + key;
-      case "long": return "l|" + key;
-      case "float":
-      case "double":return "f|" + key;
-      case "date" :
-      case "datetime" : return "d|" + key;
-    }
+//    switch (type) {
+//      case "short":
+//      case "int": return "i|" + key;
+//      case "long": return "l|" + key;
+//      case "float":
+//      case "double":return "f|" + key;
+//      case "date" :
+//      case "datetime" : return "d|" + key;
+//    }
     return key;
   }
 }
@@ -230,6 +230,43 @@ class TimeStampConverter extends IConverter<Long> {
     return formatter.parse(value).getTime();
   }
 
+}
+
+class JsonConverter extends IConverter<Map<String, Object>> {
+  private final Gson gson = new GsonBuilder().create();
+
+  @Override
+  public Map<String, Object> convert(String value) throws Exception {
+    return gson.fromJson(value, Map.class);
+  }
+
+  @Override
+  public Map<String, Object> convert(String value, String jsonKeyStr) throws Exception {
+    String[] jsonKeys = jsonKeyStr.split(";|:");
+    Map<String, Object> jsonMap = gson.fromJson(value, Map.class);
+    Map<String, Map<String, Object>> subJsonMap = null;
+    for (String jsonKey : jsonKeys) {
+      if (!jsonMap.containsKey(jsonKey))
+        continue;
+
+      if (subJsonMap == null) {
+        subJsonMap = new HashMap<String, Map<String, Object>>();
+      }
+      Object obj = jsonMap.get(jsonKey);
+      if (obj instanceof String) {
+        subJsonMap.put(jsonKey, gson.fromJson((String) obj, Map.class));
+      } else if (obj instanceof Map) {
+        subJsonMap.put(jsonKey, (Map<String, Object>) obj);
+      }
+    }
+    if (subJsonMap != null && subJsonMap.size() > 0) {
+      for (String key : subJsonMap.keySet()) {
+        jsonMap.remove(key);
+        jsonMap.putAll(subJsonMap.get(key));
+      }
+    }
+    return jsonMap;
+  }
 }
 
 
