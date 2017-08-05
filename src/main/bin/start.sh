@@ -13,7 +13,7 @@ pidfile=${project_dir}/collector.pid
 if [ -f $pidfile ];then
    ps -ef |grep `cat ${pidfile}` |grep -v 'grep'
    if [ $? -ne 0 ];then
-      echo '另一个进程已经启动，请先停止！'
+      echo 'Another process is running, please stop it first!'
       exit 1
    fi
 fi

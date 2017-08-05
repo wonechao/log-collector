@@ -91,25 +91,25 @@ public class CSVParser extends AbstractParser {
     private SimpleDateFormat sdf;
 
     public String getName() {
-      if (!firstFetchName) {
-        switch (type) {
-          case STRING:
-            break;
-          case INT:
-            name = "i|" + name;
-            break;
-          case LONG:
-            name = "l|" + name;
-            break;
-          case FLOAT:
-            name = "f|" + name;
-            break;
-          case DATE:
-            name = "d|" + name;
-            break;
-        }
-        firstFetchName = true;
-      }
+//      if (!firstFetchName) {
+//        switch (type) {
+//          case STRING:
+//            break;
+//          case INT:
+//            name = "i|" + name;
+//            break;
+//          case LONG:
+//            name = "l|" + name;
+//            break;
+//          case FLOAT:
+//            name = "f|" + name;
+//            break;
+//          case DATE:
+//            name = "d|" + name;
+//            break;
+//        }
+//        firstFetchName = true;
+//      }
       return name;
     }
 
