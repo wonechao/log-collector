@@ -1,0 +1,12 @@
+[{
+	"name": "logtype",
+	"type": "string"
+},
+{
+	"name": "logtime",
+	"type": "string"
+},
+{
+	"name": "json",
+	"type": "string"
+}]
