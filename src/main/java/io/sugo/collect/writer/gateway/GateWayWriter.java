@@ -25,12 +25,10 @@ public class GateWayWriter extends AbstractWriter {
   private final Logger logger = LoggerFactory.getLogger(GateWayWriter.class);
   private static final String GATEWAY_API = "gateway.api";
   private final String api;
-  private final String topic;
 
   public GateWayWriter(Configure conf) {
     super(conf);
     this.api = conf.getProperty(GATEWAY_API);
-    this.topic = conf.getProperty(KAFKA_TOPIC);
   }
 
   @Override
@@ -69,9 +67,9 @@ public class GateWayWriter extends AbstractWriter {
         isSucceeded = true;
       }
     } catch (HttpException e) {
-      logger.error("Fatal protocol violation: " + e);
+      logger.error("Fatal protocol violation: ", e);
     } catch (IOException e) {
-      logger.error("Fatal transport error: " + e);
+      logger.error("Fatal transport error: ", e);
     } finally {
       method.releaseConnection();
     }
