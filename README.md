@@ -39,6 +39,7 @@ bin/stop.sh
 |file.reader.grok.expr  | | grok 表达式 |
 |file.reader.csv.dimPath|${user.dir}/conf/dimension| csv维度配置文件，`parser.class`为`io.sugo.collect.parser.CSVParser`时生效 |
 |file.reader.csv.separator|  ,（逗号） | csv文件分隔符，空格分隔可填`space`， `parser.class`为`io.sugo.collect.parser.CSVParser`时生效 |
+|gateway.host |  | 网关地址 |
 
 * 其他参数说明
 

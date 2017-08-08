@@ -17,6 +17,17 @@ public class ConsoleWriter extends AbstractWriter {
   @Override
   public boolean write(List<String> messages) {
     for (String message : messages) {
+      /*
+      message structure:
+      {
+        "filename":"*.*",
+        "host":"*.*.*.*",
+        "key1":"value1",
+        "key2":"value2",
+        "key3":"value3","
+        directory":"/"
+      }
+       */
       System.out.println(message);
     }
     return true;
