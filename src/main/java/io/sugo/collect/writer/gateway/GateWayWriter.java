@@ -23,7 +23,6 @@ import java.util.List;
 public class GateWayWriter extends AbstractWriter {
 
   private final Logger logger = LoggerFactory.getLogger(GateWayWriter.class);
-  private static final String KAFKA_TOPIC = "writer.kafka.topic";
   private static final String GATEWAY_API = "gateway.api";
   private final String api;
   private final String topic;
@@ -49,10 +48,6 @@ public class GateWayWriter extends AbstractWriter {
     HttpClient client = new HttpClient();
     PostMethod method = new PostMethod(this.api);
     try {
-      NameValuePair[] queries = {
-              new NameValuePair("locate", this.topic)
-      };
-      method.setQueryString(queries);
       method.addRequestHeader("Accept-Encoding","gzip");
       StringRequestEntity requestEntity = new StringRequestEntity(
               jsonString,
