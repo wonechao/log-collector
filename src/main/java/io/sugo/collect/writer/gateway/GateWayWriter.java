@@ -24,13 +24,13 @@ public class GateWayWriter extends AbstractWriter {
 
   private final Logger logger = LoggerFactory.getLogger(GateWayWriter.class);
   private static final String KAFKA_TOPIC = "writer.kafka.topic";
-  private static final String GATEWAY_HOST = "gateway.host";
-  private final String host;
+  private static final String GATEWAY_API = "gateway.api";
+  private final String api;
   private final String topic;
 
   public GateWayWriter(Configure conf) {
     super(conf);
-    this.host = conf.getProperty(GATEWAY_HOST);
+    this.api = conf.getProperty(GATEWAY_API);
     this.topic = conf.getProperty(KAFKA_TOPIC);
   }
 
@@ -47,14 +47,13 @@ public class GateWayWriter extends AbstractWriter {
     boolean isSucceeded = false;
 
     HttpClient client = new HttpClient();
-    PostMethod method = new PostMethod(this.host + "/post");
+    PostMethod method = new PostMethod(this.api);
     try {
       NameValuePair[] queries = {
               new NameValuePair("locate", this.topic)
       };
       method.setQueryString(queries);
       method.addRequestHeader("Accept-Encoding","gzip");
-      method.addRequestHeader("Content-Type", "application/json");
       StringRequestEntity requestEntity = new StringRequestEntity(
               jsonString,
               "application/json",
@@ -62,8 +61,10 @@ public class GateWayWriter extends AbstractWriter {
       );
       method.setRequestEntity(requestEntity);
       int statusCode = client.executeMethod(method);
-      byte[] responseBody = method.getResponseBody();
-      logger.debug(new String(responseBody));
+      if (logger.isDebugEnabled()) {
+        byte[] responseBody = method.getResponseBody();
+        logger.debug(new String(responseBody));
+      }
       if (statusCode != HttpStatus.SC_OK) {
         logger.warn("Method failed: " + method.getStatusLine());
       } else {
@@ -73,11 +74,9 @@ public class GateWayWriter extends AbstractWriter {
         isSucceeded = true;
       }
     } catch (HttpException e) {
-      logger.error("Fatal protocol violation: " + e.getMessage());
-      e.printStackTrace();
+      logger.error("Fatal protocol violation: " + e);
     } catch (IOException e) {
-      logger.error("Fatal transport error: " + e.getMessage());
-      e.printStackTrace();
+      logger.error("Fatal transport error: " + e);
     } finally {
       method.releaseConnection();
     }
