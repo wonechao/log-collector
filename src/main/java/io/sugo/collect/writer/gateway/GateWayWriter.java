@@ -6,14 +6,12 @@ import io.sugo.collect.writer.AbstractWriter;
 import com.google.gson.*;
 import org.apache.commons.httpclient.*;
 import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.PostMethod.*;
-import org.apache.commons.httpclient.NameValuePair;
+
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
 import java.util.List;
 
 

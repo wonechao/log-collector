@@ -40,6 +40,7 @@ bin/stop.sh
 |file.reader.csv.dimPath|${user.dir}/conf/dimension| csv维度配置文件，`parser.class`为`io.sugo.collect.parser.CSVParser`时生效 |
 |file.reader.csv.separator|  ,（逗号） | csv文件分隔符，空格分隔可填`space`， `parser.class`为`io.sugo.collect.parser.CSVParser`时生效 |
 |gateway.api |  | 网关地址 |
+|observer.api |  | 监控地址 |
 
 * 其他参数说明
 
