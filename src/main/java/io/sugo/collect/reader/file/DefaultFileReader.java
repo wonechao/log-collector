@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.observer.CollectObserver;
-import io.sugo.collect.observer.Observe;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
@@ -222,12 +221,6 @@ public class DefaultFileReader extends AbstractReader {
               StringBuffer logbuf = new StringBuffer();
               logbuf.append("file:").append(fileName).append(" handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
-              if (!host.isEmpty()) {
-                HashMap<String, Object> object = new HashMap<>();
-                object.put(Observe.COLLECTED_LINES, line);
-                object.put(Observe.COLLECTED_ERROR, error);
-                CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), System.currentTimeMillis(), object);
-              }
               break;
             }
             int tmpSize = tempString.getBytes(UTF8).length;
@@ -236,6 +229,9 @@ public class DefaultFileReader extends AbstractReader {
               logger.error(host + " " + fileAbsolutePath, new Exception("record too large, size: " + tmpSize));
               if (StringUtils.isNotBlank(errMsgCollectorUrl))
                 HttpUtil.post(errMsgCollectorUrl, tempString);
+              if (!host.isEmpty()) {
+                CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), "error", true);
+              }
             }
 
             if (StringUtils.isNotBlank(tempString) && tmpSize < maxSize) {
@@ -254,6 +250,9 @@ public class DefaultFileReader extends AbstractReader {
                     error ++;
                     if (logger.isDebugEnabled())
                       logger.debug(tempString);
+                    if (!host.isEmpty()) {
+                      CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), "error", true);
+                    }
                   }
                 } catch (Exception e) {
                   StringBuffer logbuf = new StringBuffer();
@@ -286,6 +285,9 @@ public class DefaultFileReader extends AbstractReader {
                 logger.info("error:" + error);
                 logger.info("handle:" + line);
               }
+            }
+            if (!host.isEmpty()) {
+              CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), "lines", true);
             }
           } while (running);
         }

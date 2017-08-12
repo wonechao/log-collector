@@ -49,19 +49,18 @@ public class CollectObserver {
     }
     /*  object structure
         {
-            "metric_name_0": data1,
-            "metric_name_1": data2
+            "lines": true/false,
+            "error": true/false
         }
      */
-    public void observe(String directory, Long timestamp, HashMap<String, Object> object) {
-        for (String key: object.keySet()) {
-            HashMap<String, Object> data = new HashMap<>();
-            data.put("name", key);
-            data.put("timestamp", timestamp);
-            data.put("datapoint", object.get(key));
-            data.put("directory", directory);
-            this.observe.addData(data);
-        }
+    public void observe(String directory, HashMap<String, Object> object) {
+        this.observe.addData(directory, object);
+    }
+
+    public void observe(String directory, String key, Object value) {
+        HashMap<String, Object> object = new HashMap<>();
+        object.put(key, value);
+        this.observe.addData(directory, object);
     }
 
 

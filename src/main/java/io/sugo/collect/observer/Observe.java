@@ -4,15 +4,13 @@
 package io.sugo.collect.observer;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import io.sugo.collect.Configure;
 import org.apache.commons.httpclient.*;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.sql.*;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,10 +18,10 @@ import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class Observe implements Runnable {
+class Observe implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(Observe.class);
-    private static long notifyInterval = 30 * 1000;
+    private static long notifyInterval = 5 * 1000;
     private static final String OBSERVER_API = "observer.api";
     private static final String FILE_READER_HOST = "file.reader.host";
     public static final String COLLECTED_LINES = "sugo_collected_lines";
@@ -33,21 +31,14 @@ public class Observe implements Runnable {
     private String api;
     private String host;
     private String appid;
-    /*  queue structure
-        [
-            {
-                "name": "",
-                "timestamp": "",
-                "datapoint": ""
-            },{
-                "name": "",
-                "timestamp": "",
-                "datapoint": ""
-            }
-        ]
+    /*  metricsData structure
+        {
+            "directory0": metricsData0,
+            "directory1": metricsData1,
+        }
      */
-    private List<HashMap<String, Object>> queue;
-    ReadWriteLock rwlock;
+    private HashMap<String, MetricsData> metricsData;
+    private ReadWriteLock rwlock;
 
     Observe(Configure configure) {
 
@@ -55,7 +46,7 @@ public class Observe implements Runnable {
         this.api = configure.getProperty(OBSERVER_API);
         this.host = configure.getProperty(FILE_READER_HOST);
         this.appid = "sugo_collect";
-        this.queue = new ArrayList<>();
+        this.metricsData = new HashMap<>();
         this.rwlock = new ReentrantReadWriteLock();
     }
 
@@ -65,117 +56,91 @@ public class Observe implements Runnable {
         if (this.api.isEmpty()) {
             return;
         }
-
         while (this.isRunning) {
-
-            rwlock.readLock().lock();
-            int queueSize = this.queue.size();
-            rwlock.readLock().unlock();
-            if (queueSize > 0) {
+            this.rwlock.readLock().lock();
+            boolean isMetricsDataEmpty = this.metricsData.isEmpty();
+            this.rwlock.readLock().unlock();
+            if (!isMetricsDataEmpty) {
                 packToFlush();
             }
-
             try {
                 Thread.sleep(Observe.notifyInterval);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-
-        rwlock.readLock().lock();
-        int queueSize = this.queue.size();
-        rwlock.readLock().unlock();
-        if (queueSize > 0) {
-            // 当被shutdown的时候，如果队列中还有数据，则立即发送
+        // 当被shutdown的时候，发送最后一次数据
+        this.rwlock.readLock().lock();
+        boolean isMetricsDataEmpty = this.metricsData.isEmpty();
+        this.rwlock.readLock().unlock();
+        if (!isMetricsDataEmpty) {
             packToFlush();
         }
-
     }
 
     void stopRunning() {
         this.isRunning = false;
     }
 
-    /*  data structure
-        {
-            "name": "",
-            "timestamp": "",
-            "datapoint": "",
-            "directory": ""
+    void addData(String directory, HashMap<String, Object> object) {
+
+        if (!this.metricsData.keySet().contains(directory)) {
+            MetricsData md = new MetricsData();
+            this.rwlock.writeLock().lock();
+            this.metricsData.put(directory, md);
+            this.rwlock.writeLock().unlock();
         }
-     */
-    void addData(HashMap<String, Object> data) {
-        rwlock.writeLock().lock();
-        this.queue.add(data);
-        rwlock.writeLock().unlock();
+        if (object.get("lines") != null && (boolean) object.get("lines")) {
+            this.metricsData.get(directory).increaseLong("lines");
+        }
+        if (object.get("error") != null && (boolean) object.get("error")) {
+            this.metricsData.get(directory).increaseLong("error");
+        }
     }
 
     private void packToFlush() {
 
-        rwlock.readLock().lock();
-        List<HashMap<String, Object>> flushQueue = new ArrayList<>();
-        flushQueue.addAll(this.queue);
-        rwlock.readLock().unlock();
-
-        String json = pack(flushQueue);
-        if (flush(json)) {
-            rwlock.writeLock().lock();
-            this.queue.removeAll(flushQueue);
-            rwlock.writeLock().unlock();
-        }
-    }
-
-    private String pack(List<HashMap<String, Object>> flushQueue) {
-        List<HashMap<String, Object>> packageQueue = new ArrayList<>();
-        HashMap<String, Object> metricLines = new HashMap<>();
-        HashMap<String, Object> metricError = new HashMap<>();
-        List<Object> linesDataPoints = new ArrayList<>();
-        List<Object> errorDataPoints = new ArrayList<>();
-        HashMap<String, Object> tags = new HashMap<>();
-        String jsonString = "";
-
-        metricLines.put("name", COLLECTED_LINES);
-        metricError.put("name", COLLECTED_ERROR);
-
-        for (HashMap<String, Object> data : flushQueue) {
-            String dataName = (String)data.get("name");
-            switch (dataName) {
-                case COLLECTED_LINES:
-                    List<Object> lineDataPoint = new ArrayList<>();
-                    lineDataPoint.add(data.get("timestamp"));
-                    lineDataPoint.add(data.get("datapoint"));
-                    linesDataPoints.add(lineDataPoint);
-                    metricLines.put("datapoints", linesDataPoints);
-                    break;
-                case COLLECTED_ERROR:
-                    List<Object> errorDataPoint = new ArrayList<>();
-                    errorDataPoint.add(data.get("timestamp"));
-                    errorDataPoint.add(data.get("datapoint"));
-                    errorDataPoints.add(errorDataPoint);
-                    metricError.put("datapoints", errorDataPoints);
-                    break;
-                default:
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("wrong name: ", dataName);
-                    }
-                    break;
-            }
-            tags.put("directory", data.get("directory"));
-        }
-        tags.put("host", this.host);
-        tags.put("appid", this.appid);
-        metricLines.put("tags", tags);
-        metricError.put("tags", tags);
-        packageQueue.add(metricLines);
-        packageQueue.add(metricError);
-
         Gson gson = new Gson();
-        jsonString = gson.toJson(packageQueue);
-        return jsonString;
+        List<HashMap<String, Object>> packageQueue = packData();
+        String json = gson.toJson(packageQueue);
+        flush(json);
     }
 
-    private boolean flush(String jsonString) {
-        boolean isSucceeded = false;
+    private List<HashMap<String, Object>> packData() {
+
+        List<HashMap<String, Object>> packageQueue = new ArrayList<>();
+        Long now = System.currentTimeMillis();
+        for (String directory: this.metricsData.keySet()) {
+            HashMap<String, Object> tags = new HashMap<>();
+            tags.put("host", this.host);
+            tags.put("appid", this.appid);
+            tags.put("directory", directory);
+
+            // lines
+            Long linesCount = this.metricsData.get(directory).countLong("lines");
+            HashMap<String, Object> linesMetric = packMetric(COLLECTED_LINES, now, linesCount, tags);
+            packageQueue.add(linesMetric);
+
+            // error
+            Long errorCount = this.metricsData.get(directory).countLong("error");
+            HashMap<String, Object> errorMetric = packMetric(COLLECTED_LINES, now, errorCount, tags);
+            packageQueue.add(errorMetric);
+        }
+        return packageQueue;
+    }
+
+    private HashMap<String, Object> packMetric(String name, Long timestamp, Object data, HashMap<String, Object> tags) {
+        List<List<Object>> datapoints = new ArrayList<>();
+        List<Object> datapoint = new ArrayList<>();
+        datapoint.add(timestamp);
+        datapoint.add(data);
+        datapoints.add(datapoint);
+        Metric metric = new Metric(name, tags, datapoints);
+        return metric.toHashMap();
+    }
+
+    private void flush(String jsonString) {
+//        boolean isSucceeded = false;
         HttpClient client = new HttpClient();
         PostMethod method = new PostMethod(this.api);
         try {
@@ -196,7 +161,7 @@ public class Observe implements Runnable {
                 if (logger.isDebugEnabled()) {
                     logger.debug("success to send to KairosDB");
                 }
-                isSucceeded = true;
+//                isSucceeded = true;
             }
         } catch (HttpException e) {
             logger.error("Fatal protocol violation: ", e);
@@ -205,7 +170,7 @@ public class Observe implements Runnable {
         } finally {
             method.releaseConnection();
         }
-        return isSucceeded;
+//        return isSucceeded;
     }
 
 }
