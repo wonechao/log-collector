@@ -27,6 +27,8 @@ public class HttpUtil {
       }
 
       byte[] bytes = postMethod.getResponseBody();
+      if (bytes == null)
+        return null;
       return new String(bytes);
     } catch (IOException  e) {
       logger.error("", e);

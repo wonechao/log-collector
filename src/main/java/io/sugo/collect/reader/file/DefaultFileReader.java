@@ -3,7 +3,7 @@ package io.sugo.collect.reader.file;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
-import io.sugo.collect.observer.CollectObserver;
+import io.sugo.collect.metrics.ReaderMetrics;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
@@ -37,12 +37,12 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
   public static final String FILE_READER_HOST = "file.reader.host";
 
-  private String host;
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
   private String errMsgCollectorUrl;
 
   private int maxSize;
+
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
@@ -131,6 +131,9 @@ public class DefaultFileReader extends AbstractReader {
     if (readerMap.containsKey(directoryName))
       return;
 
+    if (!readMetricMap.containsKey(directoryName))
+      readMetricMap.put(directoryName, new ReaderMetrics());
+
     Reader reader = new Reader(directory);
     readerMap.put(directoryName, reader);
     fixedThreadPool.execute(reader);
@@ -150,6 +153,7 @@ public class DefaultFileReader extends AbstractReader {
         readerMap.remove(dirPath);
         return;
       }
+      ReaderMetrics readerMetrics= readMetricMap.get(dirPath);
 
       logger.info("reading directory:" + dirPath);
       try {
@@ -226,12 +230,10 @@ public class DefaultFileReader extends AbstractReader {
             int tmpSize = tempString.getBytes(UTF8).length;
             if (tmpSize >= maxSize){
               error ++;
+              readerMetrics.incrementError();
               logger.error(host + " " + fileAbsolutePath, new Exception("record too large, size: " + tmpSize));
               if (StringUtils.isNotBlank(errMsgCollectorUrl))
                 HttpUtil.post(errMsgCollectorUrl, tempString);
-              if (!host.isEmpty()) {
-                CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), "error", true);
-              }
             }
 
             if (StringUtils.isNotBlank(tempString) && tmpSize < maxSize) {
@@ -248,11 +250,9 @@ public class DefaultFileReader extends AbstractReader {
                     messages.add(gson.toJson(gmMap));
                   }else {
                     error ++;
+                    readerMetrics.incrementError();
                     if (logger.isDebugEnabled())
                       logger.debug(tempString);
-                    if (!host.isEmpty()) {
-                      CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), "error", true);
-                    }
                   }
                 } catch (Exception e) {
                   StringBuffer logbuf = new StringBuffer();
@@ -267,6 +267,7 @@ public class DefaultFileReader extends AbstractReader {
 
             currentByteOffset += (tmpSize + 1);
             line++;
+            readerMetrics.incrementSuccess();
             //分批写入
             if (line % batchSize == 0) {
               write(messages);
@@ -285,9 +286,6 @@ public class DefaultFileReader extends AbstractReader {
                 logger.info("error:" + error);
                 logger.info("handle:" + line);
               }
-            }
-            if (!host.isEmpty()) {
-              CollectObserver.shareInstance().observe(this.directory.getAbsolutePath(), "lines", true);
             }
           } while (running);
         }

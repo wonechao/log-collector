@@ -1,6 +1,5 @@
 package io.sugo.collect;
 
-import io.sugo.collect.observer.CollectObserver;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.reader.ReaderFactory;
 import io.sugo.collect.writer.AbstractWriter;
@@ -28,7 +27,6 @@ public class LogCollector {
      return;
     }
 
-    CollectObserver.init(conf);
     AbstractWriter writer = new WriterFactory(conf).createWriter();
     final AbstractReader reader = new ReaderFactory(conf).createReader(writer);
 
@@ -39,12 +37,10 @@ public class LogCollector {
       {
         logger.info("shutdown now...");
         reader.stop();
-        CollectObserver.shareInstance().shutdownObserve();
         logger.info("shutdown successfully");
       }
     });
 
-    CollectObserver.shareInstance().executeObserve();
     reader.read();
 
   }
