@@ -22,11 +22,13 @@ public class HttpUtil {
       postMethod.setRequestEntity(new StringRequestEntity(data, "text/plain", "UTF-8"));
       int statusCode = client.executeMethod(postMethod);
 
-      if (statusCode != HttpStatus.SC_OK) {
+      if (!(statusCode == HttpStatus.SC_OK || statusCode == HttpStatus.SC_NO_CONTENT)) {
         logger.warn("Method failed: " + postMethod.getStatusLine());
       }
 
       byte[] bytes = postMethod.getResponseBody();
+      if (bytes == null)
+        return null;
       return new String(bytes);
     } catch (IOException  e) {
       logger.error("", e);
