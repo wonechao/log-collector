@@ -2,6 +2,7 @@ package io.sugo.collect.util;
 
 import io.sugo.collect.reader.file.DefaultFileReader;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
@@ -36,4 +37,42 @@ public class HttpUtil {
     }
     return null;
   }
+
+  public static boolean postTo(String url, String data) {
+    boolean isSucceeded = false;
+
+    HttpClient client = new HttpClient();
+    PostMethod method = new PostMethod(url);
+    try {
+      method.addRequestHeader("Accept-Encoding","gzip");
+      StringRequestEntity requestEntity = new StringRequestEntity(
+              data,
+              "application/json",
+              "UTF-8"
+      );
+      method.setRequestEntity(requestEntity);
+      int statusCode = client.executeMethod(method);
+      if (logger.isDebugEnabled()) {
+        byte[] responseBody = method.getResponseBody();
+        logger.debug(new String(responseBody));
+      }
+      if (statusCode != HttpStatus.SC_OK) {
+        logger.warn("Method failed: " + method.getStatusLine());
+      } else {
+        if (logger.isDebugEnabled()) {
+          logger.debug("success to send to " + url);
+        }
+        isSucceeded = true;
+      }
+    } catch (HttpException e) {
+      logger.error("Fatal protocol violation: ", e);
+    } catch (IOException e) {
+      logger.error("Fatal transport error: ", e);
+    } finally {
+      method.releaseConnection();
+    }
+
+    return isSucceeded;
+  }
+
 }

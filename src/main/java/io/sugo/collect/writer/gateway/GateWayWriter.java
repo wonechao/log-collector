@@ -1,6 +1,7 @@
 package io.sugo.collect.writer.gateway;
 
 import io.sugo.collect.Configure;
+import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
 
 import com.google.gson.*;
@@ -38,44 +39,7 @@ public class GateWayWriter extends AbstractWriter {
     for (String message : messages) {
       result.append(message).append("\n");
     }
-    return flush(result.toString());
-  }
-
-  private boolean flush(String jsonString) {
-    boolean isSucceeded = false;
-
-    HttpClient client = new HttpClient();
-    PostMethod method = new PostMethod(this.api);
-    try {
-      method.addRequestHeader("Accept-Encoding","gzip");
-      StringRequestEntity requestEntity = new StringRequestEntity(
-              jsonString,
-              "application/json",
-              "UTF-8"
-      );
-      method.setRequestEntity(requestEntity);
-      int statusCode = client.executeMethod(method);
-      if (logger.isDebugEnabled()) {
-        byte[] responseBody = method.getResponseBody();
-        logger.debug(new String(responseBody));
-      }
-      if (statusCode != HttpStatus.SC_OK) {
-        logger.warn("Method failed: " + method.getStatusLine());
-      } else {
-        if (logger.isDebugEnabled()) {
-          logger.debug("success to send to gateway");
-        }
-        isSucceeded = true;
-      }
-    } catch (HttpException e) {
-      logger.error("Fatal protocol violation: ", e);
-    } catch (IOException e) {
-      logger.error("Fatal transport error: ", e);
-    } finally {
-      method.releaseConnection();
-    }
-
-    return isSucceeded;
+    return HttpUtil.postTo(this.api, result.toString());
   }
 
 }
