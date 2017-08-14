@@ -34,10 +34,11 @@ public class GateWayWriter extends AbstractWriter {
   @Override
   public boolean write(List<String> messages) {
 
-    Gson gson = new Gson();
-    String messagesJSON = gson.toJson(messages);
-    String result = messagesJSON.substring(1, messagesJSON.length() - 1).replace("\",\"", "\"\n\"");
-    return flush(result);
+    StringBuilder result = new StringBuilder();
+    for (String message : messages) {
+      result.append(message).append("\n");
+    }
+    return flush(result.toString());
   }
 
   private boolean flush(String jsonString) {
