@@ -232,8 +232,14 @@ public class DefaultFileReader extends AbstractReader {
               error ++;
               readerMetrics.incrementError();
               logger.error(host + " " + fileAbsolutePath, new Exception("record too large, size: " + tmpSize));
-              if (StringUtils.isNotBlank(errMsgCollectorUrl))
-                HttpUtil.post(errMsgCollectorUrl, tempString);
+              if (StringUtils.isNotBlank(errMsgCollectorUrl)){
+                try{
+                  HttpUtil.post(errMsgCollectorUrl, tempString);
+                } catch (IOException e) {
+                  logger.error("send large message fail", e);
+                }
+              }
+
             }
 
             if (StringUtils.isNotBlank(tempString) && tmpSize < maxSize) {

@@ -9,7 +9,10 @@ import io.sugo.collect.parser.AbstractParser;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by fengxj on 4/8/17.
  */
 public abstract class AbstractReader {
+  private final Logger logger = LoggerFactory.getLogger(AbstractReader.class);
   protected Configure conf;
   protected AbstractWriter writer;
   protected AbstractParser parser;
@@ -53,6 +57,7 @@ public abstract class AbstractReader {
 
   private class MetricSender extends Thread {
     private final Gson gson = new GsonBuilder().create();
+    private List<KairosDBMetric> failMetrics = new ArrayList<KairosDBMetric>();
     @Override
     public void run() {
       int interval = conf.getInt(Configure.METRIC_SEND_INTERVAL, 60000);
@@ -90,7 +95,21 @@ public abstract class AbstractReader {
 
         if (metrics.size() > 0)
         {
-          HttpUtil.post(metricServerUrl,gson.toJson(metrics));
+          //发送上一次失败的metric
+          if (failMetrics.size() > 0) {
+            try {
+              HttpUtil.post(metricServerUrl,gson.toJson(failMetrics));
+            } catch (IOException e) {
+              logger.error("send failMetrics fail ", e);
+            }
+          }
+
+          try {
+            HttpUtil.post(metricServerUrl,gson.toJson(metrics));
+          } catch (IOException e) {
+            failMetrics.addAll(metrics);
+            logger.error("send metrics fail ", e);
+          }
         }
       }
     }
