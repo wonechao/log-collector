@@ -17,7 +17,7 @@ public class ConsoleWriter extends AbstractWriter {
   @Override
   public boolean write(List<String> messages) {
     for (String message : messages) {
-      //System.out.println(message);
+      System.out.println(message);
     }
     return true;
   }
