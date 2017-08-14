@@ -36,7 +36,7 @@ public class GateWayWriter extends AbstractWriter {
 
     Gson gson = new Gson();
     String messagesJSON = gson.toJson(messages);
-    String result = messagesJSON.substring(1, messagesJSON.length() - 2).replace("\",\"", "\"\n\"");
+    String result = messagesJSON.substring(1, messagesJSON.length() - 1).replace("\",\"", "\"\n\"");
     return flush(result);
   }
 
