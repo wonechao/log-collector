@@ -3,6 +3,7 @@ package io.sugo.collect.reader.file;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
+import io.sugo.collect.metrics.ReaderMetrics;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
@@ -35,16 +36,20 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
   public static final String FILE_READER_HOST = "file.reader.host";
+  public static final String FILE_READER_LOG_TYPE = "file.reader.log.type";
 
-  private String host;
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
   private String errMsgCollectorUrl;
+  private boolean isSeparate;
 
   private int maxSize;
+
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
+    String logType = conf.getProperty(FILE_READER_LOG_TYPE, "separate");
+    isSeparate = logType.equals("separate");
     if (StringUtils.isBlank(host)){
       try {
         InetAddress addr = InetAddress.getLocalHost();
@@ -130,6 +135,9 @@ public class DefaultFileReader extends AbstractReader {
     if (readerMap.containsKey(directoryName))
       return;
 
+    if (!readMetricMap.containsKey(directoryName))
+      readMetricMap.put(directoryName, new ReaderMetrics());
+
     Reader reader = new Reader(directory);
     readerMap.put(directoryName, reader);
     fixedThreadPool.execute(reader);
@@ -149,6 +157,7 @@ public class DefaultFileReader extends AbstractReader {
         readerMap.remove(dirPath);
         return;
       }
+      ReaderMetrics readerMetrics= readMetricMap.get(dirPath);
 
       logger.info("reading directory:" + dirPath);
       try {
@@ -189,7 +198,7 @@ public class DefaultFileReader extends AbstractReader {
           }
           long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
-          if (currentByteOffset > 0 && fileLength < currentByteOffset) {
+          if (!isSeparate && currentByteOffset > 0 && fileLength < currentByteOffset) {
             currentByteOffset = 0;
           }
 
@@ -218,16 +227,23 @@ public class DefaultFileReader extends AbstractReader {
 
               currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
-              logbuf.append("file:").append(fileName).append("handle finished, total lines:").append(line).append(" error:").append(error);
+              logbuf.append("file:").append(fileName).append(" handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
               break;
             }
             int tmpSize = tempString.getBytes(UTF8).length;
             if (tmpSize >= maxSize){
               error ++;
+              readerMetrics.incrementError();
               logger.error(host + " " + fileAbsolutePath, new Exception("record too large, size: " + tmpSize));
-              if (StringUtils.isNotBlank(errMsgCollectorUrl))
-                HttpUtil.post(errMsgCollectorUrl, tempString);
+              if (StringUtils.isNotBlank(errMsgCollectorUrl)){
+                try{
+                  HttpUtil.post(errMsgCollectorUrl, tempString);
+                } catch (IOException e) {
+                  logger.error("send large message fail", e);
+                }
+              }
+
             }
 
             if (StringUtils.isNotBlank(tempString) && tmpSize < maxSize) {
@@ -244,6 +260,7 @@ public class DefaultFileReader extends AbstractReader {
                     messages.add(gson.toJson(gmMap));
                   }else {
                     error ++;
+                    readerMetrics.incrementError();
                     if (logger.isDebugEnabled())
                       logger.debug(tempString);
                   }
@@ -260,6 +277,7 @@ public class DefaultFileReader extends AbstractReader {
 
             currentByteOffset += (tmpSize + 1);
             line++;
+            readerMetrics.incrementSuccess();
             //分批写入
             if (line % batchSize == 0) {
               write(messages);
