@@ -49,7 +49,7 @@ public class DefaultFileReader extends AbstractReader {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
     String logType = conf.getProperty(FILE_READER_LOG_TYPE, "separate");
-    isSeparate = logType.equals("separate") ? true : false;
+    isSeparate = logType.equals("separate");
     if (StringUtils.isBlank(host)){
       try {
         InetAddress addr = InetAddress.getLocalHost();
