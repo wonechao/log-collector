@@ -36,16 +36,20 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_SCAN_INTERVAL = "file.reader.scan.interval";
   public static final String FILE_READER_THREADPOOL_SIZE = "file.reader.threadpool.size";
   public static final String FILE_READER_HOST = "file.reader.host";
+  public static final String FILE_READER_LOG_TYPE = "file.reader.log.type";
 
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
   private String errMsgCollectorUrl;
+  private boolean isSeparate;
 
   private int maxSize;
 
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
+    String logType = conf.getProperty(FILE_READER_LOG_TYPE, "separate");
+    isSeparate = logType.equals("separate");
     if (StringUtils.isBlank(host)){
       try {
         InetAddress addr = InetAddress.getLocalHost();
@@ -194,7 +198,7 @@ public class DefaultFileReader extends AbstractReader {
           }
           long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
-          if (currentByteOffset > 0 && fileLength < currentByteOffset) {
+          if (!isSeparate && currentByteOffset > 0 && fileLength < currentByteOffset) {
             currentByteOffset = 0;
           }
 

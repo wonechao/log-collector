@@ -4,11 +4,6 @@ import io.sugo.collect.Configure;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
 
-import com.google.gson.*;
-import org.apache.commons.httpclient.*;
-import org.apache.commons.httpclient.methods.PostMethod;
-
-import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,15 +14,15 @@ import java.util.List;
 /**
  * Created by fengxj on 5/24/17.
  */
-public class GateWayWriter extends AbstractWriter {
+public class GatewayWriter extends AbstractWriter {
 
-  private final Logger logger = LoggerFactory.getLogger(GateWayWriter.class);
-  private static final String GATEWAY_API = "gateway.api";
+  private final Logger logger = LoggerFactory.getLogger(GatewayWriter.class);
+  private static final String WRITER_GATEWAY_API = "writer.gateway.api";
   private final String api;
 
-  public GateWayWriter(Configure conf) {
+  public GatewayWriter(Configure conf) {
     super(conf);
-    this.api = conf.getProperty(GATEWAY_API);
+    this.api = conf.getProperty(WRITER_GATEWAY_API);
   }
 
   @Override
