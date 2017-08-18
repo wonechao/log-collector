@@ -7,7 +7,7 @@ JAVA=$JAVA_HOME'/bin/java'
 if [ -z $JAVA_HOME ]; then
  JAVA='java'
 fi
-conf_file=${project_dir}'/conf/collect.properties'
+conf_file=${project_dir}'/conf/Sugo-C.conf'
 
 pidfile=${project_dir}/collector.pid
 if [ -f $pidfile ];then
