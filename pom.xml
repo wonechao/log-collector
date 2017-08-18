@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.sugo.collect</groupId>
-    <artifactId>log-collector</artifactId>
-    <version>2.0</version>
+    <artifactId>Sugo-C</artifactId>
+    <version>1.0</version>
 
     <properties>
         <junit.version>4.11</junit.version>

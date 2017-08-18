@@ -1,4 +1,4 @@
-# log-collector
+# Sugo-C
 文件日志采集工具
 
 ## 编译：

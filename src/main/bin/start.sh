@@ -17,7 +17,7 @@ if [ -f $pidfile ];then
       exit 1
    fi
 fi
-nohup $JAVA -Dcollect.properties=$conf_file -cp  "${project_dir}/lib/*:${project_dir}/conf/"  io.sugo.collect.LogCollector > /dev/null &
+nohup $JAVA -Dcollect.properties=$conf_file -cp  "${project_dir}/lib/*:${project_dir}/conf/"  io.sugo.collect.SugoC > /dev/null &
 if [ $? -eq 0 ];then
   echo $! > ${project_dir}/collector.pid
 fi

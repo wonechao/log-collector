@@ -15,8 +15,8 @@ import java.nio.channels.FileLock;
 /**
  * Created by fengxj on 4/8/17.
  */
-public class LogCollector {
-  private static final Logger logger = LoggerFactory.getLogger(LogCollector.class);
+public class SugoC {
+  private static final Logger logger = LoggerFactory.getLogger(SugoC.class);
   public static void main(String[] args) throws Exception {
     Configure conf = new Configure();
     String logfile = conf.getProperty(Configure.USER_DIR) + "/.lock";
