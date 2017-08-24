@@ -49,7 +49,6 @@ public class BBKHybridParser extends GrokParser {
     @Override
     public Map<String, Object> parse(String line) throws Exception {
 
-
         Map<String, Object> map = super.parse(line);
         String httpEncrypted = (String) map.get("http_encrypted");
         if (httpEncrypted.equals("encrypted")) {
@@ -80,9 +79,9 @@ public class BBKHybridParser extends GrokParser {
         gm.captures();
         Map<String, Object> map = gm.toMap();
         String key = "";
-        key = RSAUtil.priDecrypt(map.get("s_key").toString(), this.privateKey);
-        String result = AESUtil.decryptAES(map.get("json_base_request").toString(), key);
-        map.put("json_base_request", result);
+        key = RSAUtil.priDecrypt(map.get("http_eebbk_key").toString(), this.privateKey);
+        String result = AESUtil.decryptAES(map.get("http_Base_Request_Param").toString(), key);
+        map.put("http_Base_Request_Param", result);
         return map;
     }
 
