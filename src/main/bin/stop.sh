@@ -7,4 +7,5 @@ project_dir=`pwd`
 if [ -f ${project_dir}/collector.pid ];then
    kill -15 `cat ${project_dir}/collector.pid`
    rm -rf ${project_dir}/collector.pid
+   echo 'Stopped'
 fi
