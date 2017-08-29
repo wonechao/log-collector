@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import io.sugo.collect.Configure;
 import io.sugo.collect.util.AESUtil;
 import io.sugo.collect.util.RSAUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,11 +41,18 @@ public class BBKHybridParser extends GrokParser {
         }
 
         String result = (String)originalMap.get(HTTP_BASE_REQUEST_PARAM);
-        Map<String, String> httpBaseRequestParamMap = gson.fromJson(result, new TypeToken<Map<String, String>>(){}.getType());
-        for (String key : httpBaseRequestParamMap.keySet()) {
-            originalMap.put(key, httpBaseRequestParamMap.get(key));
+        try {
+            if (!StringUtils.isBlank(result) && !result.startsWith("-")) {
+                Map<String, Object> httpBaseRequestParamMap = gson.fromJson(result, Map.class);
+                for (String key : httpBaseRequestParamMap.keySet()) {
+                    originalMap.put(key, httpBaseRequestParamMap.get(key));
+                }
+                originalMap.remove(HTTP_BASE_REQUEST_PARAM);
+            }
+        } catch (Exception e) {
+            logger.error("json parse error:" + line, e);
         }
-        originalMap.remove(HTTP_BASE_REQUEST_PARAM);
+
 
         if (originalMap.containsKey(EXCEPTION_KEY)) {
             Object exVal = originalMap.get(EXCEPTION_KEY);
