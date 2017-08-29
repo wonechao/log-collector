@@ -18,6 +18,8 @@ public class BBKHybridParser extends GrokParser {
     public static final String FILE_READER_DECRYPTION_PRIVATE = "file.reader.decryption.private";
     private String privateKey;
 
+    private Gson gson = new Gson();
+
     public BBKHybridParser(Configure conf) {
         super(conf);
         this.privateKey = conf.getProperty(FILE_READER_DECRYPTION_PRIVATE, "");
@@ -26,53 +28,45 @@ public class BBKHybridParser extends GrokParser {
     @Override
     public Map<String, Object> parse(String line) throws Exception {
 
-        Map<String, Object> resultMap;
         Map<String, Object> originalMap = super.parse(line);
         if (originalMap.isEmpty()) {
-            throw new Exception("Parse failed: " + originalMap);
+            throw new Exception("Parse failed");
         }
         String httpEncrypted = (String) originalMap.get("http_encrypted");
         if (httpEncrypted.equals("encrypted")) {
-            resultMap = encryptedParse(originalMap);
+            encryptedParse(originalMap);
         } else {
-            resultMap = unencryptedParse(originalMap);
+            unencryptedParse(originalMap);
         }
-        if (resultMap.containsKey(EXCEPTION_KEY)) {
-            Object exVal = resultMap.get(EXCEPTION_KEY);
-            resultMap.put("exception_size", exVal.toString().length());
-            resultMap.put(EXCEPTION_KEY, exVal);
-            resultMap.remove(EXCEPTION_KEY);
+
+        String result = (String)originalMap.get(HTTP_BASE_REQUEST_PARAM);
+        Map<String, String> httpBaseRequestParamMap = gson.fromJson(result, new TypeToken<Map<String, String>>(){}.getType());
+        for (String key : httpBaseRequestParamMap.keySet()) {
+            originalMap.put(key, httpBaseRequestParamMap.get(key));
         }
-        return resultMap;
+        originalMap.remove(HTTP_BASE_REQUEST_PARAM);
+
+        if (originalMap.containsKey(EXCEPTION_KEY)) {
+            Object exVal = originalMap.get(EXCEPTION_KEY);
+            originalMap.put("exception_size", exVal.toString().length());
+            originalMap.put(EXCEPTION_KEY, exVal);
+            originalMap.remove(EXCEPTION_KEY);
+        }
+        return originalMap;
     }
 
-    private Map<String, Object> unencryptedParse(Map<String, Object> map) throws Exception {
-
-        Gson gson = new Gson();
+    private void unencryptedParse(Map<String, Object> map) throws Exception {
         //参考nginx日志模块ngx_http_log_escape方法
         //" \ del  会被转为\x22 \x5C \x7F
         //https://github.com/nginx/nginx/blob/9ad18e43ac2c9956399018cbb998337943988333/src/http/modules/ngx_http_log_module.c
         String httpBaseRequestParam = ((String) map.get(HTTP_BASE_REQUEST_PARAM)).replace("\\x5C", "\\").replace("\\x22", "\"");
-        Map<String, String> httpBaseRequestParamMap = gson.fromJson(httpBaseRequestParam, new TypeToken<Map<String, String>>(){}.getType());
-        for (String key : httpBaseRequestParamMap.keySet()) {
-            map.put(key, httpBaseRequestParamMap.get(key));
-        }
-        map.remove(HTTP_BASE_REQUEST_PARAM);
-        return map;
+        map.put(HTTP_BASE_REQUEST_PARAM, httpBaseRequestParam);
     }
 
-    private Map<String, Object> encryptedParse(Map<String, Object> map) throws Exception {
-
-        String pk = "";
-        pk = RSAUtil.priDecrypt(map.get("http_eebbk_key").toString(), this.privateKey);
+    private void encryptedParse(Map<String, Object> map) throws Exception {
+        String pk = RSAUtil.priDecrypt(map.get("http_eebbk_key").toString(), this.privateKey);
         String result = AESUtil.decryptAES(map.get(HTTP_BASE_REQUEST_PARAM).toString(), pk);
-        Gson gson = new Gson();
-        Map<String, String> httpBaseRequestParamMap = gson.fromJson(result, new TypeToken<Map<String, String>>(){}.getType());
-        for (String key : httpBaseRequestParamMap.keySet()) {
-            map.put(key, httpBaseRequestParamMap.get(key));
-        }
-        map.remove(HTTP_BASE_REQUEST_PARAM);
-        return map;
+        map.put(HTTP_BASE_REQUEST_PARAM, result);
     }
 
 
