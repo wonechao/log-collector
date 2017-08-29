@@ -26,19 +26,27 @@ public class BBKHybridParser extends GrokParser {
     @Override
     public Map<String, Object> parse(String line) throws Exception {
 
-        Map<String, Object> map = super.parse(line);
-        if (map.isEmpty()) {
-            throw new Exception("Parse failed: " + map);
+        Map<String, Object> resultMap;
+        Map<String, Object> originalMap = super.parse(line);
+        if (originalMap.isEmpty()) {
+            throw new Exception("Parse failed: " + originalMap);
         }
-        String httpEncrypted = (String) map.get("http_encrypted");
+        String httpEncrypted = (String) originalMap.get("http_encrypted");
         if (httpEncrypted.equals("encrypted")) {
-            return encryptedParse(map);
+            resultMap = encryptedParse(originalMap);
         } else {
-            return unencryptedParse(map);
+            resultMap = unencryptedParse(originalMap);
         }
+        if (resultMap.containsKey(EXCEPTION_KEY)) {
+            Object exVal = resultMap.get(EXCEPTION_KEY);
+            resultMap.put("exception_size", exVal.toString().length());
+            resultMap.put(EXCEPTION_KEY, exVal);
+            resultMap.remove(EXCEPTION_KEY);
+        }
+        return resultMap;
     }
 
-    Map<String, Object> unencryptedParse(Map<String, Object> map) throws Exception {
+    private Map<String, Object> unencryptedParse(Map<String, Object> map) throws Exception {
 
         Gson gson = new Gson();
         //参考nginx日志模块ngx_http_log_escape方法
@@ -50,17 +58,10 @@ public class BBKHybridParser extends GrokParser {
             map.put(key, httpBaseRequestParamMap.get(key));
         }
         map.remove(HTTP_BASE_REQUEST_PARAM);
-
-        if (map.containsKey(EXCEPTION_KEY)) {
-            Object exVal = map.get(EXCEPTION_KEY);
-            map.put("exception_size", exVal.toString().length());
-            map.put(EXCEPTION_KEY, exVal);
-            map.remove(EXCEPTION_KEY);
-        }
         return map;
     }
 
-    Map<String, Object> encryptedParse(Map<String, Object> map) throws Exception {
+    private Map<String, Object> encryptedParse(Map<String, Object> map) throws Exception {
 
         String pk = "";
         pk = RSAUtil.priDecrypt(map.get("http_eebbk_key").toString(), this.privateKey);
@@ -71,14 +72,6 @@ public class BBKHybridParser extends GrokParser {
             map.put(key, httpBaseRequestParamMap.get(key));
         }
         map.remove(HTTP_BASE_REQUEST_PARAM);
-
-        if (map.containsKey(EXCEPTION_KEY)) {
-            Object exVal = map.get(EXCEPTION_KEY);
-            map.put("exception_size", exVal.toString().length());
-            map.put(EXCEPTION_KEY, exVal);
-            map.remove(EXCEPTION_KEY);
-        }
-
         return map;
     }
 
