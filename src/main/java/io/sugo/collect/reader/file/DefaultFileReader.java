@@ -169,7 +169,7 @@ public class DefaultFileReader extends AbstractReader {
         String lastFileName = null;
         String offsetStr = null;
         if (offsetFile.exists()) {
-          offsetStr = FileUtils.readFileToString(offsetFile);
+          offsetStr = FileUtils.readFileToString(offsetFile, "UTF-8");
           if(StringUtils.isBlank(offsetStr))
             logger.error(offsetFile.getAbsolutePath() + " is empty!!");
           String[] fields = StringUtils.split(offsetStr.trim(), ':');
@@ -222,7 +222,7 @@ public class DefaultFileReader extends AbstractReader {
               if (messages.size() > 0) {
                 write(messages);
                 //成功写入则记录消费位点，并继续读下一个文件
-                FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
+                FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset, "UTF-8", false);
               }
 
               currentByteOffset = 0;
@@ -258,6 +258,7 @@ public class DefaultFileReader extends AbstractReader {
                     gmMap.put("host", host);
                     gmMap.put("filename", fileName);
                     messages.add(gson.toJson(gmMap));
+                    readerMetrics.incrementSuccess();
                   }else {
                     error ++;
                     readerMetrics.incrementError();
@@ -277,11 +278,10 @@ public class DefaultFileReader extends AbstractReader {
 
             currentByteOffset += (tmpSize + 1);
             line++;
-            readerMetrics.incrementSuccess();
             //分批写入
             if (line % batchSize == 0) {
               write(messages);
-              FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
+              FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset, "UTF-8", false);
               messages = new ArrayList<>();
             }
 

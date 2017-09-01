@@ -3,10 +3,13 @@ package io.sugo.collect.parser;
 import com.google.gson.*;
 import io.sugo.collect.Configure;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.commons.httpclient.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -15,10 +18,12 @@ public class LYParser extends CSVParser {
 
     private final Logger logger = LoggerFactory.getLogger(LYParser.class);
     public static final String PARSER_DIMENSIONS_ASSOCIATION_API = "parser.dimensions.association.api";
+    private static final String ASSOCIATED_KEY = "activity_id";
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("YYMMdd hh:mm:ss");
     public String api;
     private Gson gson;
     private Map<String, JsonArray> associatedDimensions;
+    private String exceptionDirectory;
 
     public LYParser(Configure conf) {
         super(conf);
@@ -26,6 +31,7 @@ public class LYParser extends CSVParser {
         api = conf.getProperty(PARSER_DIMENSIONS_ASSOCIATION_API);
         gson = new Gson();
         associatedDimensions = requestDimensions(api);
+        exceptionDirectory = conf.getProperty(Configure.USER_DIR) + "/ly/";
     }
 
     @Override
@@ -35,8 +41,8 @@ public class LYParser extends CSVParser {
             return map;
         }
         map = super.parse(line);
-        String activityId = map.get("activity_id").toString();
-        JsonArray dimensionArray = this.associatedDimensions.get(activityId);
+        String associatedKey = map.get(ASSOCIATED_KEY).toString();
+        JsonArray dimensionArray = this.associatedDimensions.get(associatedKey);
         if (dimensionArray != null) {
             for (int i = 0;i < dimensionArray.size();i++) {
                 JsonObject dimension = dimensionArray.get(i).getAsJsonObject();
@@ -45,7 +51,13 @@ public class LYParser extends CSVParser {
                 map.put(key, value);
             }
         } else {
-            // TODO: markdown filename and stop reading
+            String exceptionPath = this.exceptionDirectory + associatedKey + ".log";
+            File exceptionFile = new File(exceptionPath);
+            try {
+                FileUtils.writeStringToFile(exceptionFile, line + "\n", "UTF-8", true);
+            } catch (IOException e) {
+                logger.error("write to file failed: ", e);
+            }
             return new HashMap<>();
         }
         String activityDateData = map.get("activity_date").toString();
@@ -59,7 +71,7 @@ public class LYParser extends CSVParser {
         return map;
     }
 
-    Map<String, JsonArray> requestDimensions(String url) {
+    private Map<String, JsonArray> requestDimensions(String url) {
 
         Map<String, JsonArray> dimensionsMap = new HashMap<>();
         HttpClient client = new HttpClient();
