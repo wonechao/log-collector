@@ -19,7 +19,7 @@ public class LYParser extends CSVParser {
     private final Logger logger = LoggerFactory.getLogger(LYParser.class);
     public static final String PARSER_DIMENSIONS_ASSOCIATION_API = "parser.dimensions.association.api";
     private static final String ASSOCIATED_KEY = "activity_id";
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("YYMMdd hh:mm:ss");
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMdd hh:mm:ss");
     public String api;
     private Gson gson;
     private Map<String, JsonArray> associatedDimensions;
