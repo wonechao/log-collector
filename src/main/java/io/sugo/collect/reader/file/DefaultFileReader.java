@@ -190,7 +190,7 @@ public class DefaultFileReader extends AbstractReader {
           }
         });
         long current = System.currentTimeMillis();
-        for (File file : files) {
+        for (File file : sortFiles) {
           String fileName = file.getName();
 
           if (lastFileName != null && !lastFileName.equals(fileName)) {
