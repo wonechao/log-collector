@@ -223,6 +223,7 @@ public class DefaultFileReader extends AbstractReader {
 
             //文件结尾处理
             if (tempString == null) {
+              lastFileName = fileName;
               if (messages.size() > 0) {
                 write(messages);
                 //成功写入则记录消费位点，并继续读下一个文件
