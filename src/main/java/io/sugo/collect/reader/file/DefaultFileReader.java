@@ -190,7 +190,11 @@ public class DefaultFileReader extends AbstractReader {
           }
         });
         long current = System.currentTimeMillis();
-        for (File file : files) {
+        for (File file : sortFiles) {
+          if (!running){
+            readerMap.remove(dirPath);
+            return;
+          }
           String fileName = file.getName();
 
           if (lastFileName != null && !lastFileName.equals(fileName)) {
@@ -219,6 +223,7 @@ public class DefaultFileReader extends AbstractReader {
 
             //文件结尾处理
             if (tempString == null) {
+              lastFileName = fileName;
               if (messages.size() > 0) {
                 write(messages);
                 //成功写入则记录消费位点，并继续读下一个文件
