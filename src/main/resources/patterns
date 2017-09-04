@@ -113,4 +113,4 @@ LOGLEVEL ([A|a]lert|ALERT|[T|t]race|TRACE|[D|d]ebug|DEBUG|[N|n]otice|NOTICE|[I|i
 JSON (\{.*\})|(-)|()
 
 UPSTREAM_ADDR (%{IPV4:UNWANTED}:%{POSINT:UNWANTED}[, ]{0,2})+
-FORWORD (?:%{IPV4:UNWANTED}[,]?[ ]?)+|%{WORD:UNWANTED}
+FORWORD (?:%{IPV4:UNWANTED}[,]?[ ]?)+|.?
