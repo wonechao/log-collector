@@ -25,6 +25,7 @@ public class Configure {
   public static final String ERROR_MESSAGE_HTTP_COLLECTOR_URL = "error.message.http_collector.url";
   public static final String METRIC_SERVER_URL = "metric.server.url";
   public static final String METRIC_SEND_INTERVAL = "metric.send.interval.ms";
+  public static final String METRIC_DIMENSION_TIME = "metric.dimension.time";
 
   private String collectorConf;
   private Properties properties = new Properties();

@@ -263,6 +263,7 @@ public class DefaultFileReader extends AbstractReader {
                     gmMap.put("host", host);
                     gmMap.put("filename", fileName);
                     messages.add(gson.toJson(gmMap));
+                    readerMetrics.incrementSuccess((String) gmMap.get(metricDimensionTime));
                   }else {
                     error ++;
                     readerMetrics.incrementError();
@@ -282,7 +283,6 @@ public class DefaultFileReader extends AbstractReader {
 
             currentByteOffset += (tmpSize + 1);
             line++;
-            readerMetrics.incrementSuccess();
             //分批写入
             if (line % batchSize == 0) {
               write(messages);
