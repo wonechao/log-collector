@@ -22,8 +22,7 @@ public class ReaderMetrics {
     }
   }
 
-  public void incrementSuccess(String ts) {
-    long timestamp = Long.parseLong(ts);
+  public void incrementSuccess(long timestamp) {
     Long key = (long) (Math.ceil((timestamp / 60000d))) * 60000;
     if (!successMap.containsKey(key)) {
       successMap.put(key, new AtomicLong(0));
