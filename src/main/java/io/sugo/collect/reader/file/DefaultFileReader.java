@@ -227,7 +227,7 @@ public class DefaultFileReader extends AbstractReader {
               if (messages.size() > 0) {
                 write(messages);
               }
-              //成功写入则记录消费位点，并继续读下一个文件
+              //记录消费位点
               FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
 
               currentByteOffset = 0;
