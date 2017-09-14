@@ -10,6 +10,7 @@
 		<fileSet>
 			<directory>src/main/bin</directory>
 			<outputDirectory>bin</outputDirectory>
+			<fileMode>744</fileMode>
 		</fileSet>
 		<fileSet>
 			<directory>src/main/resources</directory>
