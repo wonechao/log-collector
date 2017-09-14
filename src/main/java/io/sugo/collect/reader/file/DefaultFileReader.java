@@ -267,7 +267,11 @@ public class DefaultFileReader extends AbstractReader {
                     gmMap.put("host", host);
                     gmMap.put("filename", fileName);
                     messages.add(gson.toJson(gmMap));
-                    readerMetrics.incrementSuccess((long)gmMap.get(metricDimensionTime));
+                    if (shouldMetricSuccessProcessed) {
+                      readerMetrics.incrementSuccess();
+                    } else {
+                      readerMetrics.incrementSuccess((long)gmMap.get(metricDimensionTime));
+                    }
                   }else {
                     error ++;
                     readerMetrics.incrementError();

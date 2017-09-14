@@ -12,6 +12,7 @@ public class ReaderMetrics {
 
   private ReaderMetrics preReaderMetrics;
   private Map<Long, AtomicLong> successMap = new ConcurrentHashMap<>();
+  private AtomicLong success = new AtomicLong(0);
   private AtomicLong error = new AtomicLong(0);
   public ReaderMetrics(){
     this(false);
@@ -20,6 +21,9 @@ public class ReaderMetrics {
     if (!hasNoPre) {
       preReaderMetrics = new ReaderMetrics(true);
     }
+  }
+  public void incrementSuccess() {
+    success.incrementAndGet();
   }
 
   public void incrementSuccess(long timestamp) {
@@ -34,7 +38,14 @@ public class ReaderMetrics {
     error.incrementAndGet();
   }
 
-  public List<Object[]> success() {
+  public long success() {
+    long successLong = success.get();
+    long preSuccessLong = preReaderMetrics.success.get();
+    preReaderMetrics.success.set(successLong);
+    return successLong - preSuccessLong;
+  }
+
+  public List<Object[]> successMap() {
 
     List<Object[]> success = new ArrayList<>();
     long current = System.currentTimeMillis();
@@ -71,7 +82,11 @@ public class ReaderMetrics {
     return errorLong - preErrorLong;
   }
 
-  public List<Object[]> allSuccess() {
+  public long allSuccess() {
+    return success.get();
+  }
+
+  public List<Object[]> allSuccessMap() {
 
     List<Object[]> success = new ArrayList<>();
     long oneDay = 1000 * 60 * 60 * 24;

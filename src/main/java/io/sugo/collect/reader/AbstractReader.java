@@ -32,6 +32,7 @@ public abstract class AbstractReader {
   protected String host;
   protected String metricServerUrl;
   protected String metricDimensionTime;
+  protected boolean shouldMetricSuccessProcessed;
 
   private final String METRIC_PREFIX = "collector.";
   private final String READ_LINE_METRIC_NAME = METRIC_PREFIX + "line.read.success";
@@ -51,6 +52,12 @@ public abstract class AbstractReader {
     }
     this.running = true;
 
+    String metricSuccessStyle = conf.getProperty(Configure.METRIC_SUCCESS_STYLE, "processed");
+    if (metricSuccessStyle.equals("processed")) {
+      shouldMetricSuccessProcessed = true;
+    } else { // raw
+      shouldMetricSuccessProcessed = false;
+    }
     metricDimensionTime = conf.getProperty(Configure.METRIC_DIMENSION_TIME, "_time");
     metricServerUrl = conf.getProperty(Configure.METRIC_SERVER_URL);
     if (StringUtils.isNotBlank(metricServerUrl)){
@@ -79,12 +86,22 @@ public abstract class AbstractReader {
           Map<String, String> tags = new HashMap<String, String>();
           tags.put("from", key);
           tags.put("host", host);
-          KairosDBMetricMultiple successKairosDBMetric = new KairosDBMetricMultiple();
-          successKairosDBMetric.setName(READ_LINE_METRIC_NAME);
-          successKairosDBMetric.setTags(tags);
-          successKairosDBMetric.setType("long");
-          successKairosDBMetric.setDatapoints(readerMetric.success());
-          metrics.add(successKairosDBMetric);
+          if (shouldMetricSuccessProcessed) {
+            KairosDBMetricSingle successKairosDBMetric = new KairosDBMetricSingle();
+            successKairosDBMetric.setName(READ_LINE_METRIC_NAME);
+            successKairosDBMetric.setTags(tags);
+            successKairosDBMetric.setType("long");
+            successKairosDBMetric.setValue(readerMetric.success());
+            successKairosDBMetric.setTimestamp(current);
+            metrics.add(successKairosDBMetric);
+          } else {
+            KairosDBMetricMultiple successKairosDBMetric = new KairosDBMetricMultiple();
+            successKairosDBMetric.setName(READ_LINE_METRIC_NAME);
+            successKairosDBMetric.setTags(tags);
+            successKairosDBMetric.setType("long");
+            successKairosDBMetric.setDatapoints(readerMetric.successMap());
+            metrics.add(successKairosDBMetric);
+          }
 
           KairosDBMetricSingle errorKairosDBMetric = new KairosDBMetricSingle();
           errorKairosDBMetric.setName(READ_ERROR_METRIC_NAME);
