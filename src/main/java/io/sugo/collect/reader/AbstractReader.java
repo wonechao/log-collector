@@ -99,7 +99,7 @@ public abstract class AbstractReader {
             successKairosDBMetric.setName(READ_LINE_METRIC_NAME);
             successKairosDBMetric.setTags(tags);
             successKairosDBMetric.setType("long");
-            successKairosDBMetric.setDatapoints(readerMetric.successMap());
+            successKairosDBMetric.setDatapoints(readerMetric.allSuccessMap());
             metrics.add(successKairosDBMetric);
           }
 

@@ -89,13 +89,28 @@ public class ReaderMetrics {
   public List<Object[]> allSuccessMap() {
 
     List<Object[]> success = new ArrayList<>();
+    long current = System.currentTimeMillis();
     long oneDay = 1000 * 60 * 60 * 24;
-    for (Long ts: successMap.keySet()) {
+    Set<Long> keySet = successMap.keySet();
+    for (Long ts: keySet) {
+      if (current - ts > oneDay) {
+        successMap.remove(ts);
+        continue;
+      }
       long successLong = successMap.get(ts).get();
-      Object[] objects = new Object[2];
-      objects[0] = ts;
-      objects[1] = successLong;
-      success.add(objects);
+      long preSuccessLong;
+      if (!preReaderMetrics.successMap.containsKey(ts)) {
+        preReaderMetrics.successMap.put(ts, new AtomicLong(0));
+      }
+      preSuccessLong = preReaderMetrics.successMap.get(ts).get();
+      preReaderMetrics.successMap.get(ts).set(successLong);
+      // filter invalid data
+      if (successLong != preSuccessLong) {
+        Object[] objects = new Object[2];
+        objects[0] = ts;
+        objects[1] = successLong;
+        success.add(objects);
+      }
     }
     return success;
   }
