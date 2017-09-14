@@ -226,14 +226,15 @@ public class DefaultFileReader extends AbstractReader {
               lastFileName = fileName;
               if (messages.size() > 0) {
                 write(messages);
-                //成功写入则记录消费位点，并继续读下一个文件
-                FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
               }
+              //成功写入则记录消费位点，并继续读下一个文件
+              FileUtils.writeStringToFile(offsetFile, fileName + ":" + currentByteOffset);
 
               currentByteOffset = 0;
               StringBuffer logbuf = new StringBuffer();
               logbuf.append("file:").append(fileName).append(" handle finished, total lines:").append(line).append(" error:").append(error);
               logger.info(logbuf.toString());
+              fis.close();
               break;
             }
             int tmpSize = tempString.getBytes(UTF8).length;
