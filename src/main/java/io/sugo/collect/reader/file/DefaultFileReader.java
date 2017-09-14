@@ -38,6 +38,7 @@ public class DefaultFileReader extends AbstractReader {
   public static final String FILE_READER_HOST = "file.reader.host";
   public static final String FILE_READER_LOG_TYPE = "file.reader.log.type";
 
+  private int lineSeparatorSize;
   private String metaBaseDir;
   ExecutorService fixedThreadPool;
   private String errMsgCollectorUrl;
@@ -58,6 +59,8 @@ public class DefaultFileReader extends AbstractReader {
         e.printStackTrace();
       }
     }
+    String lineSeparator = conf.getProperty(Configure.FILE_READER_LINE_SEPARATOR, "\n");
+    lineSeparatorSize = lineSeparator.length();
     readerMap = new HashMap<String, Reader>();
     int threadSize = conf.getInt(FILE_READER_THREADPOOL_SIZE);
     fixedThreadPool = Executors.newFixedThreadPool(threadSize);
@@ -237,7 +240,7 @@ public class DefaultFileReader extends AbstractReader {
               fis.close();
               break;
             }
-            int tmpSize = tempString.getBytes(UTF8).length;
+            int tmpSize = tempString.getBytes(UTF8).length + lineSeparatorSize;
             if (tmpSize >= maxSize){
               error ++;
               readerMetrics.incrementError();
