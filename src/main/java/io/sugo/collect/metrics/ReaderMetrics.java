@@ -39,7 +39,8 @@ public class ReaderMetrics {
     List<Object[]> success = new ArrayList<>();
     long current = System.currentTimeMillis();
     long oneDay = 1000 * 60 * 60 * 24;
-    for (Long ts: successMap.keySet()) {
+    Set<Long> keySet = successMap.keySet();
+    for (Long ts: keySet) {
       if (current - ts > oneDay) {
         successMap.remove(ts);
         continue;
