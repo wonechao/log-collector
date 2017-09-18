@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.metrics.KairosDBMetric;
+import io.sugo.collect.metrics.KairosDBMetricMultiple;
+import io.sugo.collect.metrics.KairosDBMetricSingle;
 import io.sugo.collect.metrics.ReaderMetrics;
 import io.sugo.collect.parser.AbstractParser;
 import io.sugo.collect.util.HttpUtil;
@@ -29,6 +31,8 @@ public abstract class AbstractReader {
   protected ConcurrentHashMap<String, ReaderMetrics> readMetricMap = new ConcurrentHashMap<String, ReaderMetrics>();
   protected String host;
   protected String metricServerUrl;
+  protected String metricDimensionTime;
+  protected boolean shouldMetricSuccessProcessed;
 
   private final String METRIC_PREFIX = "collector.";
   private final String READ_LINE_METRIC_NAME = METRIC_PREFIX + "line.read.success";
@@ -48,6 +52,13 @@ public abstract class AbstractReader {
     }
     this.running = true;
 
+    String metricSuccessStyle = conf.getProperty(Configure.METRIC_SUCCESS_STYLE, "processed");
+    if (metricSuccessStyle.equals("processed")) {
+      shouldMetricSuccessProcessed = true;
+    } else { // raw
+      shouldMetricSuccessProcessed = false;
+    }
+    metricDimensionTime = conf.getProperty(Configure.METRIC_DIMENSION_TIME, "_time");
     metricServerUrl = conf.getProperty(Configure.METRIC_SERVER_URL);
     if (StringUtils.isNotBlank(metricServerUrl)){
       new MetricSender().start();
@@ -70,27 +81,35 @@ public abstract class AbstractReader {
         Set<String> keySet = readMetricMap.keySet();
         long current = System.currentTimeMillis();
         List<KairosDBMetric> metrics = new ArrayList<>();
-        KairosDBMetric kairosDBMetric;
         for (String key : keySet) {
           ReaderMetrics readerMetric = readMetricMap.get(key);
           Map<String, String> tags = new HashMap<String, String>();
           tags.put("from", key);
           tags.put("host", host);
-          kairosDBMetric = new KairosDBMetric();
-          kairosDBMetric.setName(READ_LINE_METRIC_NAME);
-          kairosDBMetric.setTags(tags);
-          kairosDBMetric.setType("long");
-          kairosDBMetric.setValue(readerMetric.success());
-          kairosDBMetric.setTimestamp(current);
-          metrics.add(kairosDBMetric);
+          if (shouldMetricSuccessProcessed) {
+            KairosDBMetricSingle successKairosDBMetric = new KairosDBMetricSingle();
+            successKairosDBMetric.setName(READ_LINE_METRIC_NAME);
+            successKairosDBMetric.setTags(tags);
+            successKairosDBMetric.setType("long");
+            successKairosDBMetric.setValue(readerMetric.success());
+            successKairosDBMetric.setTimestamp(current);
+            metrics.add(successKairosDBMetric);
+          } else {
+            KairosDBMetricMultiple successKairosDBMetric = new KairosDBMetricMultiple();
+            successKairosDBMetric.setName(READ_LINE_METRIC_NAME);
+            successKairosDBMetric.setTags(tags);
+            successKairosDBMetric.setType("long");
+            successKairosDBMetric.setDatapoints(readerMetric.allSuccessMap());
+            metrics.add(successKairosDBMetric);
+          }
 
-          kairosDBMetric = new KairosDBMetric();
-          kairosDBMetric.setName(READ_ERROR_METRIC_NAME);
-          kairosDBMetric.setTags(tags);
-          kairosDBMetric.setType("long");
-          kairosDBMetric.setValue(readerMetric.error());
-          kairosDBMetric.setTimestamp(current);
-          metrics.add(kairosDBMetric);
+          KairosDBMetricSingle errorKairosDBMetric = new KairosDBMetricSingle();
+          errorKairosDBMetric.setName(READ_ERROR_METRIC_NAME);
+          errorKairosDBMetric.setTags(tags);
+          errorKairosDBMetric.setType("long");
+          errorKairosDBMetric.setValue(readerMetric.error());
+          errorKairosDBMetric.setTimestamp(current);
+          metrics.add(errorKairosDBMetric);
         }
 
         if (metrics.size() > 0)
