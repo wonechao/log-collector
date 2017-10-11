@@ -7,6 +7,7 @@ import io.sugo.collect.metrics.ReaderMetrics;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
+import io.sugo.collect.writer.WriterFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.lang3.StringUtils;
@@ -45,9 +46,15 @@ public class DefaultFileReader extends AbstractReader {
   private boolean isSeparate;
 
   private int maxSize;
+  protected AbstractWriter writer;
 
-  public DefaultFileReader(Configure conf, AbstractWriter writer) {
-    super(conf, writer);
+  public DefaultFileReader(Configure conf, WriterFactory writerFactory) {
+    super(conf);
+    try {
+      writer = writerFactory.createWriter();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     host = conf.getProperty(FILE_READER_HOST);
     String logType = conf.getProperty(FILE_READER_LOG_TYPE, "separate");
     isSeparate = logType.equals("separate");
@@ -92,6 +99,7 @@ public class DefaultFileReader extends AbstractReader {
 
   @Override
   public void read() {
+    super.read();
     metaBaseDir = conf.getProperty(Configure.USER_DIR) + "/meta/";
     logger.info("DefaultFileReader started");
     int diffMin = conf.getInt(FILE_READER_SCAN_TIMERANGE);
