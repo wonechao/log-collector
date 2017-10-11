@@ -49,7 +49,7 @@ public class DefaultFileReader extends AbstractReader {
   protected AbstractWriter writer;
 
   public DefaultFileReader(Configure conf, WriterFactory writerFactory) {
-    super(conf);
+    super(conf, writerFactory);
     try {
       writer = writerFactory.createWriter();
     } catch (Exception e) {
