@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.parser.AbstractParser;
 import io.sugo.collect.writer.AbstractWriter;
+import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -13,11 +14,13 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 public class CustomKafkaConsumer{
     private static final Logger logger = LoggerFactory.getLogger(CustomKafkaConsumer.class);
-    private static final String KAFKA_CONFIG_PREFIX = "kafka.";
+    private static final String KAFKA_CONFIG_PREFIX = "reader.kafka.";
     private static final String FROM_BEGINNING = "reader.kafka.frombeginning";
     private static final long POLL_TIMEOUT = 10;
     private final Configure conf;
@@ -79,6 +82,7 @@ public class CustomKafkaConsumer{
                 consumer.seekToEnd(topicPartitions);
                 break;
             }
+            offset ++;
             logger.info("Thread:" + threadNum + " Seeking topic[" + topic+ "] partition[" + partition + "] to offset[" + offset + "].");
             consumer.seek(new TopicPartition(topic, partition), offset);
         }
@@ -87,12 +91,20 @@ public class CustomKafkaConsumer{
 
     public void work() {
         running = true;
+        Set<Integer> partitions = offsetMap.keySet();
+        Map<Integer, File> offsetFiles = new HashMap<Integer, File>();
+        for (Integer partition : partitions) {
+            File offsetFile = new File(KafkaReader.READER_KAFKA_OFFSET_DIR + "/" + topic + "/" + partition);
+            offsetFiles.put(partition, offsetFile);
+        }
         int batchSize = conf.getInt(Configure.FILE_READER_BATCH_SIZE);
         ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
         while (running){
             messages = new ArrayList<>();
             records = consumer.poll(POLL_TIMEOUT);
+            boolean hasrecord = false;
             for (ConsumerRecord<byte[], byte[]> record : records) {
+                hasrecord = true;
                 offsetMap.put(record.partition(), record.offset());
                 final byte[] valueBytes = record.value();
                 if (valueBytes == null) {
@@ -136,6 +148,16 @@ public class CustomKafkaConsumer{
                 }
             }
             //todo: write offset
+            if (hasrecord) {
+                for (Integer partition : offsetMap.keySet()) {
+                    try {
+                        FileUtils.writeStringToFile(offsetFiles.get(partition), offsetMap.get(partition) + "");
+                    } catch (IOException e) {
+                        logger.error("failed to write offset ", e);
+                    }
+                }
+            }
+
         }
         stop = true;
     }
