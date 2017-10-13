@@ -27,8 +27,6 @@ public class BBKParser extends GrokParser {
     if (map.containsKey(EXCEPTION_KEY)) {
       Object exVal = map.get(EXCEPTION_KEY);
       map.put("exception_size", exVal.toString().length());
-      map.put(EXCEPTION_KEY, exVal);
-      map.remove(EXCEPTION_KEY);
     }
     return map;
   }
