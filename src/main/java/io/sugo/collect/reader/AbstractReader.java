@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class AbstractReader {
   private final Logger logger = LoggerFactory.getLogger(AbstractReader.class);
+  protected final WriterFactory writerFactory;
   protected Configure conf;
   protected AbstractParser parser;
   protected boolean running;
@@ -37,8 +38,9 @@ public abstract class AbstractReader {
   private final String METRIC_PREFIX = "collector.";
   private final String READ_LINE_METRIC_NAME = METRIC_PREFIX + "line.read.success";
   private final String READ_ERROR_METRIC_NAME = METRIC_PREFIX + "line.read.error";
-  protected AbstractReader(Configure conf) {
+  protected AbstractReader(Configure conf, WriterFactory writerFactory) {
     this.conf = conf;
+    this.writerFactory = writerFactory;
     try {
       String pasterClassName = conf.getProperty(Configure.PARSER_CLASS);
       if (StringUtils.isBlank(pasterClassName))

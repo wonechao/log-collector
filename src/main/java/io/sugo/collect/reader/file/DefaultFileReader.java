@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.metrics.ReaderMetrics;
+import io.sugo.collect.parser.IgnorableException;
 import io.sugo.collect.reader.AbstractReader;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
@@ -49,7 +50,7 @@ public class DefaultFileReader extends AbstractReader {
   protected AbstractWriter writer;
 
   public DefaultFileReader(Configure conf, WriterFactory writerFactory) {
-    super(conf);
+    super(conf, writerFactory);
     try {
       writer = writerFactory.createWriter();
     } catch (Exception e) {
@@ -287,10 +288,12 @@ public class DefaultFileReader extends AbstractReader {
                       logger.debug(tempString);
                   }
                 } catch (Exception e) {
-                  StringBuffer logbuf = new StringBuffer();
-                  logbuf.append("file:").append(fileAbsolutePath).append("currentByteOffset:").
-                      append(currentByteOffset).append(" failed to parse:").append(tempString);
-                  logger.error(logbuf.toString(), e);
+                  if (!(e instanceof IgnorableException)){
+                    StringBuffer logbuf = new StringBuffer();
+                    logbuf.append("file:").append(fileAbsolutePath).append("currentByteOffset:").
+                            append(currentByteOffset).append(" failed to parse:").append(tempString);
+                    logger.error(logbuf.toString(), e);
+                  }
                   //if (StringUtils.isNotBlank(errMsgCollectorUrl))
                   //  HttpUtil.post(errMsgCollectorUrl, tempString);
                 }
