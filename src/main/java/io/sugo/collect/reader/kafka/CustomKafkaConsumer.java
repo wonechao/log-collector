@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
 import io.sugo.collect.parser.AbstractParser;
+import io.sugo.collect.parser.IgnorableException;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -78,8 +79,10 @@ public class CustomKafkaConsumer{
                 String fromBeginning = conf.getProperty(FROM_BEGINNING, "false");
                 if (fromBeginning.equals("true")){
                     consumer.seekToBeginning(topicPartitions);
+                }else {
+                    consumer.seekToEnd(topicPartitions);
                 }
-                consumer.seekToEnd(topicPartitions);
+
                 break;
             }
             offset ++;
@@ -119,15 +122,13 @@ public class CustomKafkaConsumer{
                         Map<String, Object> gmMap = parser.parse(message);
                         if (gmMap.size() > 0){
                             messages.add(gson.toJson(gmMap));
-                        }else{
-                            StringBuffer logbuf = new StringBuffer();
-                            logbuf.append(" failed to parse:").append(message);
-                            logger.error(logbuf.toString());
                         }
                     } catch (Exception e) {
-                        StringBuffer logbuf = new StringBuffer();
-                        logbuf.append(" failed to parse:").append(message);
-                        logger.error(logbuf.toString(), e);
+                        if (!(e instanceof IgnorableException)){
+                            StringBuffer logbuf = new StringBuffer();
+                            logbuf.append(" failed to parse:").append(message);
+                            logger.error(logbuf.toString(), e);
+                        }
                     }
                 }
 
