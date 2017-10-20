@@ -10,6 +10,7 @@ import io.sugo.collect.metrics.ReaderMetrics;
 import io.sugo.collect.parser.AbstractParser;
 import io.sugo.collect.util.HttpUtil;
 import io.sugo.collect.writer.AbstractWriter;
+import io.sugo.collect.writer.WriterFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class AbstractReader {
   private final Logger logger = LoggerFactory.getLogger(AbstractReader.class);
+  protected final WriterFactory writerFactory;
   protected Configure conf;
-  protected AbstractWriter writer;
   protected AbstractParser parser;
   protected boolean running;
   protected ConcurrentHashMap<String, ReaderMetrics> readMetricMap = new ConcurrentHashMap<String, ReaderMetrics>();
@@ -37,9 +38,9 @@ public abstract class AbstractReader {
   private final String METRIC_PREFIX = "collector.";
   private final String READ_LINE_METRIC_NAME = METRIC_PREFIX + "line.read.success";
   private final String READ_ERROR_METRIC_NAME = METRIC_PREFIX + "line.read.error";
-  protected AbstractReader(Configure conf, AbstractWriter writer) {
+  protected AbstractReader(Configure conf, WriterFactory writerFactory) {
     this.conf = conf;
-    this.writer = writer;
+    this.writerFactory = writerFactory;
     try {
       String pasterClassName = conf.getProperty(Configure.PARSER_CLASS);
       if (StringUtils.isBlank(pasterClassName))
@@ -50,7 +51,6 @@ public abstract class AbstractReader {
     } catch (Exception e) {
       e.printStackTrace();
     }
-    this.running = true;
 
     String metricSuccessStyle = conf.getProperty(Configure.METRIC_SUCCESS_STYLE, "processed");
     if (metricSuccessStyle.equals("processed")) {
@@ -138,5 +138,7 @@ public abstract class AbstractReader {
     this.running = false;
   }
 
-  public abstract void read();
+  public void read(){
+    this.running = true;
+  }
 }

@@ -20,7 +20,7 @@ public class KafkaWriter extends AbstractWriter {
   private final Producer<Integer, String> producer;
   private static final String KAFKA_CONFIG_PREFIX = "kafka.";
   private static final String KAFKA_TOPIC = "writer.kafka.topic";
-  private final String topic;
+  private String topic;
   private int currentRetryTime = 0;
 
   public KafkaWriter(Configure conf) {
@@ -88,5 +88,9 @@ public class KafkaWriter extends AbstractWriter {
     }
     currentRetryTime = 0;
     return true;
+  }
+
+  public void setTopic(String topic){
+    this.topic = topic;
   }
 }

@@ -27,8 +27,7 @@ public class LogCollector {
      return;
     }
 
-    AbstractWriter writer = new WriterFactory(conf).createWriter();
-    final AbstractReader reader = new ReaderFactory(conf).createReader(writer);
+    final AbstractReader reader = new ReaderFactory(conf).createReader(new WriterFactory(conf));
 
     Runtime.getRuntime().addShutdownHook(new Thread()
     {
