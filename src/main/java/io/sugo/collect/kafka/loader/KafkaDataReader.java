@@ -58,17 +58,6 @@ public class KafkaDataReader implements Closeable {
     assignPartitions();
   }
 
-  private Map<String, Long> parsePartitions(String partitionStr) {
-    String[] pairs = partitionStr.split(";");
-    Map<String, Long> map = new HashMap<>();
-    for (int i = 0; i < pairs.length; i++) {
-      String pair = pairs[i];
-      String[] tmp = pair.split(":");
-      map.put(tmp[0], Long.valueOf(tmp[1]));
-    }
-    return map;
-  }
-
   private KafkaConsumer<byte[], byte[]> newConsumer() {
     ClassLoader currCtxCl = Thread.currentThread().getContextClassLoader();
     try {
