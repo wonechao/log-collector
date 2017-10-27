@@ -7,5 +7,5 @@ if [ -z $JAVA_HOME ]; then
 fi
 conf_file=${project_dir}'/conf/collect.properties'
 echo $1
-$JAVA -Dcollect.properties=$conf_file -cp  "${project_dir}/lib/*:${project_dir}/conf/"  io.sugo.collect.GrokVerification $1
+$JAVA -Dcollect.properties=$conf_file -cp  "${project_dir}/lib/*:${project_dir}/conf/"  io.sugo.collect.GrokVerification $@
 
