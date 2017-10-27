@@ -6,6 +6,6 @@ if [ -z $JAVA_HOME ]; then
  JAVA='java'
 fi
 conf_file=${project_dir}'/conf/collect.properties'
-echo $1
+echo $@
 $JAVA -Dcollect.properties=$conf_file -cp  "${project_dir}/lib/*:${project_dir}/conf/"  io.sugo.collect.GrokVerification $@
 
