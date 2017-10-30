@@ -16,6 +16,11 @@ bin/start.sh
 bin/stop.sh
 ```
 
+## 验证Parser
+```shell
+bin/verify_parser.sh ${EXAMPLE_FILE_ABSOLUTE_PATH}
+```
+
 ## 配置
 
 ### 文件：`conf/collect.properties`
