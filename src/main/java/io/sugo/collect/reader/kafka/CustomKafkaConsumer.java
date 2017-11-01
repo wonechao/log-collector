@@ -1,5 +1,6 @@
 package io.sugo.collect.reader.kafka;
 
+import com.alibaba.fastjson.JSON;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
@@ -12,6 +13,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +27,9 @@ public class CustomKafkaConsumer{
     private static final Logger logger = LoggerFactory.getLogger(CustomKafkaConsumer.class);
     private static final String KAFKA_CONFIG_PREFIX = "reader.kafka.";
     private static final String FROM_BEGINNING = "reader.kafka.frombeginning";
+    private static final String READER_KAFKA_ZOOKEEPER_SERVER =  "reader.kafka.zookeeper.server";
+    private static final String READER_KAFKA_ZOOKEEPER_TIMEOUT =  "reader.kafka.zookeeper.timeout";
+    private static final String READER_KAFKA_ZOOKEEPER_HOSTS_PATH =  "reader.kafka.zookeeper.hosts.path";
     private static final long POLL_TIMEOUT = 10;
     private final Configure conf;
     private final int threadNum;
@@ -47,6 +54,46 @@ public class CustomKafkaConsumer{
         consumer = newConsumer(conf);
         assignPartitions();
     }
+
+    private static String getClusterViz(String zookeeper, int timeout, String hostsPath) {
+
+        ZooKeeper zkClient = null;
+        StringBuilder hostBuilder = new StringBuilder("");
+        try {
+            zkClient = new ZooKeeper(zookeeper, timeout, new Watcher() {
+                @Override
+                public void process(WatchedEvent event) {
+                }
+            });
+            List<String> ids = zkClient.getChildren(hostsPath, false);
+            for (String id : ids) {
+                String brokerInfo = new String(zkClient.getData(hostsPath + "/" + id, false, null));
+                Map hostMap = JSON.parseObject(brokerInfo);
+                hostBuilder.append(hostMap.get("host"));
+                hostBuilder.append(":");
+                hostBuilder.append(hostMap.get("port"));
+                hostBuilder.append(",");
+            }
+        } catch (Exception ex) {
+            logger.error("", ex);
+        } finally {
+            // 关闭zookeeper连接
+            if (null != zkClient) {
+                try {
+                    zkClient.close();
+                } catch (InterruptedException e) {
+                    logger.error("", e);
+                }
+            }
+            String hostString = hostBuilder.toString();
+            if (0 < hostString.length()) {
+                return hostString.substring(0, hostString.length() - 1);
+            } else {
+                return "";
+            }
+        }
+    }
+
     public static KafkaConsumer<byte[], byte[]> newConsumer(Configure conf) {
         final Properties props = new Properties();
         Properties properties = conf.getProperties();
@@ -55,6 +102,13 @@ public class CustomKafkaConsumer{
             if (keyStr.startsWith(KAFKA_CONFIG_PREFIX)) {
                 props.put(keyStr.substring(KAFKA_CONFIG_PREFIX.length()), properties.getProperty(keyStr));
             }
+        }
+        String zookeeper = conf.getProperty(READER_KAFKA_ZOOKEEPER_SERVER);
+        if (!zookeeper.isEmpty()) {
+            int zkTimeout = Integer.parseInt(conf.getProperty(READER_KAFKA_ZOOKEEPER_TIMEOUT, "10000"));
+            String zkHostsPath = conf.getProperty(READER_KAFKA_ZOOKEEPER_HOSTS_PATH);
+            String brokerList = getClusterViz(zookeeper, zkTimeout, zkHostsPath);
+            props.setProperty("bootstrap.servers", brokerList);
         }
         props.setProperty("enable.auto.commit", "false");
         props.setProperty("auto.offset.reset", "none");
