@@ -16,6 +16,18 @@ bin/start.sh
 bin/stop.sh
 ```
 
+## 验证Parser
+```shell
+# 在项目目录下执行以下命令行可验证当前项目conf/collect.properties中parser.class指定的parser解析情况
+# 其中，${EXAMPLE_FILE_ABSOLUTE_PATH}是指用来验证的样例数据文件的绝对路径
+# 例如，在"/usr/local"下有一样例数据文件"example.log"，则在进入项目根目录后，可通过执行以下命令行验证Parser运行情况
+#
+# bin/verify_parser.sh /usr/local/example.log
+#
+# 样例数据可以存放多条，以换行分隔，验证结果将在执行后逐条分别打印出[样例数据]与[解析结果]，可通过此验证Parser运行情况
+bin/verify_parser.sh ${EXAMPLE_FILE_ABSOLUTE_PATH}
+```
+
 ## 配置
 
 ### 文件：`conf/collect.properties`
