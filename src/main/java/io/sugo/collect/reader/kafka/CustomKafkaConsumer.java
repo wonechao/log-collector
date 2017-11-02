@@ -1,6 +1,5 @@
 package io.sugo.collect.reader.kafka;
 
-import com.alibaba.fastjson.JSON;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.sugo.collect.Configure;
@@ -65,10 +64,11 @@ public class CustomKafkaConsumer{
                 public void process(WatchedEvent event) {
                 }
             });
+            Gson gson = new Gson();
             List<String> ids = zkClient.getChildren(hostsPath, false);
             for (String id : ids) {
                 String brokerInfo = new String(zkClient.getData(hostsPath + "/" + id, false, null));
-                Map hostMap = JSON.parseObject(brokerInfo);
+                Map hostMap = gson.fromJson(brokerInfo, Map.class);
                 hostBuilder.append(hostMap.get("host"));
                 hostBuilder.append(":");
                 hostBuilder.append(hostMap.get("port"));

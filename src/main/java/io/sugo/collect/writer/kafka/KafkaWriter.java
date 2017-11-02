@@ -1,10 +1,9 @@
 package io.sugo.collect.writer.kafka;
 
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
 import io.sugo.collect.Configure;
 import io.sugo.collect.writer.AbstractWriter;
 import org.apache.kafka.clients.producer.*;
-import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -12,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
@@ -65,10 +63,11 @@ public class KafkaWriter extends AbstractWriter {
         public void process(WatchedEvent event) {
         }
       });
+      Gson gson = new Gson();
       List<String> ids = zkClient.getChildren(this.zkHostsPath, false);
       for (String id : ids) {
         String brokerInfo = new String(zkClient.getData(this.zkHostsPath + "/" + id, false, null));
-        Map hostMap = JSON.parseObject(brokerInfo);
+        Map hostMap = gson.fromJson(brokerInfo, Map.class);
         hostBuilder.append(hostMap.get("host"));
         hostBuilder.append(":");
         hostBuilder.append(hostMap.get("port"));
