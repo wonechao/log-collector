@@ -44,7 +44,7 @@ public class KafkaWriter extends AbstractWriter {
       }
     }
     this.zookeeper = conf.getProperty(KAFKA_ZOOKEEPER_SERVER);
-    if (!zookeeper.isEmpty()) {
+    if (zookeeper !=null && !zookeeper.isEmpty()) {
       this.zkTimeout = Integer.parseInt(conf.getProperty(KAFKA_ZOOKEEPER_TIMEOUT, "10000"));
       this.zkHostsPath = conf.getProperty(KAFKA_ZOOKEEPER_HOSTS_PATH);
       this.brokerList = getClusterViz(zookeeper);
