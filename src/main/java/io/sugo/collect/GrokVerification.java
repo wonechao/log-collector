@@ -1,5 +1,6 @@
 package io.sugo.collect;
 
+import com.google.gson.Gson;
 import io.sugo.collect.parser.AbstractParser;
 import io.sugo.collect.parser.GrokParser;
 import org.slf4j.Logger;
@@ -18,7 +19,7 @@ public class GrokVerification {
             logger.error("Please input grok example!");
             return;
         }
-
+        Gson gson = new Gson();
         Configure configure = new Configure();
         Class parserClass = Class.forName(configure.getProperty(Configure.PARSER_CLASS));
         AbstractParser parser = (AbstractParser) parserClass.getDeclaredConstructor(new Class[]{Configure.class}).newInstance(configure);
@@ -31,7 +32,7 @@ public class GrokVerification {
         while ((example = bufferedReader.readLine()) != null) {
             Map<String, Object> resultMap = parser.parse(example);
             logger.info("example:\n" + example);
-            logger.info("result:\n" + resultMap.toString());
+            logger.info("result:\n" + gson.toJson(resultMap));
         }
 
     }
