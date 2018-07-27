@@ -202,7 +202,7 @@ public class DefaultFileReader extends AbstractReader {
           }
           long fileLength = file.length();
           //如果offset大于文件长度，从0开始读
-          if (!isSeparate && currentByteOffset > 0 && fileLength < currentByteOffset) {
+          if (!isSeparate && currentByteOffset > 0 && fileLength <= currentByteOffset -2) {
             currentByteOffset = 0;
           }
 
