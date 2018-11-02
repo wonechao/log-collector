@@ -82,6 +82,7 @@ public class CSVParser extends AbstractParser {
     private String type;
     private String format;
     private String defaultValue;
+    private boolean isDynamicDimension;
     private boolean firstFetchName;
     private static final String STRING = "string";
     private static final String INT = "int";
@@ -91,25 +92,25 @@ public class CSVParser extends AbstractParser {
     private SimpleDateFormat sdf;
 
     public String getName() {
-//      if (!firstFetchName) {
-//        switch (type) {
-//          case STRING:
-//            break;
-//          case INT:
-//            name = "i|" + name;
-//            break;
-//          case LONG:
-//            name = "l|" + name;
-//            break;
-//          case FLOAT:
-//            name = "f|" + name;
-//            break;
-//          case DATE:
-//            name = "d|" + name;
-//            break;
-//        }
-//        firstFetchName = true;
-//      }
+      if (isDynamicDimension && !firstFetchName) {
+        switch (type) {
+          case STRING:
+            break;
+          case INT:
+            name = "i|" + name;
+            break;
+          case LONG:
+            name = "l|" + name;
+            break;
+          case FLOAT:
+            name = "f|" + name;
+            break;
+          case DATE:
+            name = "d|" + name;
+            break;
+        }
+        firstFetchName = true;
+      }
       return name;
     }
 
@@ -165,6 +166,14 @@ public class CSVParser extends AbstractParser {
       }
 
       return value;
+    }
+
+    public boolean isDynamicDimension() {
+      return isDynamicDimension;
+    }
+
+    public void setDynamicDimension(boolean dynamicDimension) {
+      isDynamicDimension = dynamicDimension;
     }
   }
 }
