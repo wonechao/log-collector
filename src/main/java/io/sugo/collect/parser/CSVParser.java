@@ -12,10 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by fengxj on 6/10/17.
@@ -25,6 +22,7 @@ public class CSVParser extends AbstractParser {
   private static final Gson gson = new GsonBuilder().create();
   public static final String FILE_READER_CSV_SEPARATOR = "file.reader.csv.separator";
   public static final String FILE_READER_CSV_DIMPATH = "file.reader.csv.dimPath";
+  public static final String IGNORE_MESSAGE_TAG = "\001";
   private List<Dimension> dimensionList;
   private String separator;
 
@@ -66,6 +64,8 @@ public class CSVParser extends AbstractParser {
         Object readValue = dim.getValue(value);
         if (readValue == null)
           continue;
+        if (readValue.equals(IGNORE_MESSAGE_TAG))
+          return Collections.emptyMap();
         result.put(dim.getName(), readValue);
       } catch (ParseException e) {
         if (logger.isDebugEnabled()) {
@@ -82,6 +82,8 @@ public class CSVParser extends AbstractParser {
     private String type;
     private String format;
     private String defaultValue;
+    private Set<String> writeList;
+    private boolean isIgnore ;
     private boolean isDynamicDimension;
     private boolean firstFetchName;
     private static final String STRING = "string";
@@ -135,6 +137,12 @@ public class CSVParser extends AbstractParser {
     }
 
     public Object getValue(String value) throws ParseException {
+      if (isIgnore){
+        return null;
+      }
+      if (writeList.size() > 0 && !writeList.contains(value)){
+        return IGNORE_MESSAGE_TAG;
+      }
       if (StringUtils.isBlank(value)){
         if (defaultValue != null)
           return defaultValue;
@@ -174,6 +182,23 @@ public class CSVParser extends AbstractParser {
 
     public void setDynamicDimension(boolean dynamicDimension) {
       isDynamicDimension = dynamicDimension;
+    }
+
+    public boolean isIgnore() {
+      return isIgnore;
+    }
+
+    public void setIgnore(boolean ignore) {
+      isIgnore = ignore;
+    }
+
+
+    public Set<String> getWriteList() {
+      return writeList;
+    }
+
+    public void setWriteList(Set<String> writeList) {
+      this.writeList = writeList;
     }
   }
 }
