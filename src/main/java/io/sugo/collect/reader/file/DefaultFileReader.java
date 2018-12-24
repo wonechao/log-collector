@@ -45,8 +45,6 @@ public class DefaultFileReader extends AbstractReader {
 
   private int maxSize;
 
-  private Date date = new Date();
-
   public DefaultFileReader(Configure conf, AbstractWriter writer) {
     super(conf, writer);
     host = conf.getProperty(FILE_READER_HOST);
@@ -265,7 +263,7 @@ public class DefaultFileReader extends AbstractReader {
                     gmMap.put("directory", dirPath);
                     gmMap.put("host", host);
                     gmMap.put("filename", fileName);
-                    gmMap.put("collect_time",date.getTime());
+                    gmMap.put("collect_time",System.currentTimeMillis());
                     messages.add(gson.toJson(gmMap));
                   }else {
                     error ++;
